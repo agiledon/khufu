@@ -1,0 +1,104 @@
+import inquirer from 'inquirer';
+import type { ToolDefinition, InstallScope } from '../registry/types.js';
+
+/**
+ * Prompt the user to select a target IDE.
+ */
+export async function promptIDE(availableTools: ToolDefinition[]): Promise<ToolDefinition> {
+  const { toolId } = await inquirer.prompt<{ toolId: string }>([
+    {
+      type: 'list',
+      name: 'toolId',
+      message: 'Select AI IDE:',
+      choices: availableTools.map((tool) => ({
+        name: tool.name,
+        value: tool.id,
+      })),
+    },
+  ]);
+
+  const selected = availableTools.find((t) => t.id === toolId)!;
+  return selected;
+}
+
+/**
+ * Prompt the user to select installation scope.
+ */
+export async function promptScope(): Promise<InstallScope> {
+  const { scope } = await inquirer.prompt<{ scope: InstallScope }>([
+    {
+      type: 'list',
+      name: 'scope',
+      message: 'Select installation scope:',
+      choices: [
+        {
+          name: 'Project-level (this project only)',
+          value: 'project',
+        },
+        {
+          name: 'Global (available in all projects)',
+          value: 'global',
+        },
+      ],
+    },
+  ]);
+  return scope;
+}
+
+/**
+ * Confirm whether to proceed with an action.
+ */
+export async function promptConfirm(message: string, defaultValue = true): Promise<boolean> {
+  const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([
+    {
+      type: 'confirm',
+      name: 'confirmed',
+      message,
+      default: defaultValue,
+    },
+  ]);
+  return confirmed;
+}
+
+/**
+ * Prompt for a language when auto-detection fails.
+ */
+export async function promptLanguage(): Promise<string> {
+  const { language } = await inquirer.prompt<{ language: string }>([
+    {
+      type: 'list',
+      name: 'language',
+      message: 'Select project language:',
+      choices: [
+        { name: 'Java', value: 'java' },
+        { name: 'Python', value: 'python' },
+        { name: 'TypeScript', value: 'typescript' },
+        { name: 'JavaScript', value: 'javascript' },
+        { name: 'Go', value: 'go' },
+        { name: 'C#', value: 'c#' },
+        { name: 'Rust', value: 'rust' },
+        { name: 'Ruby', value: 'ruby' },
+      ],
+    },
+  ]);
+  return language;
+}
+
+/**
+ * Prompt for handling already-installed skills.
+ */
+export async function promptExistingInstall(): Promise<'overwrite' | 'skip' | 'update'> {
+  const { action } = await inquirer.prompt<{ action: 'overwrite' | 'skip' | 'update' }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'khufu skills are already installed. What would you like to do?',
+      choices: [
+        { name: 'Overwrite (reinstall all skills)', value: 'overwrite' },
+        { name: 'Skip (keep existing installation)', value: 'skip' },
+        { name: 'Update (install missing skills only)', value: 'update' },
+      ],
+    },
+  ]);
+  return action;
+}

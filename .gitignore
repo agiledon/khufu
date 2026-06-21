@@ -1,0 +1,72 @@
+# --- Dependencies ---
+node_modules/
+package-lock.json
+
+# --- Build output ---
+dist/
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# --- Khufu internal state ---
+.khufu/
+
+# --- Test coverage output ---
+coverage/
+.nyc_output/
+*.lcov
+coverage.lcov
+coverage.json
+htmlcov/
+.coverage
+.coverage.*
+*.coverage
+jacoco.exec
+test-results/
+*.trx
+
+# --- IDE & Editor ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vs/
+
+# --- OS generated ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.yaml
+credentials.json
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# --- TypeScript ---
+*.tsbuildinfo
+
+# --- Misc ---
+*.bak
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
