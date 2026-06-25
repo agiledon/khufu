@@ -50,11 +50,38 @@ Read the following shared modules to configure the test generation environment:
 2. If in **spec-based mode**: populate the `## Evaluation Criteria` section of the spec file with quantified criteria.
 3. If in **code-based mode**: define criteria in-memory (they will be written to the retroactively-generated spec later).
 
-### Step 3: Pyramid Dedup Check
+### Step 3: Dedup Checks
+
+#### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** As the base layer, UT has no lower layers to check against. However, note:
 - UT OWNS business logic verification — IT/API/E2E should not duplicate these checks
 - In the generated test comments, mark which risk dimensions the test covers (see Step 6 annotation format)
+
+#### 3.2 Spec Sync — Incremental Check (Cross-Run)
+
+**Read `_shared/spec-sync.md`.** Before generating tests, check if previous runs have already produced tests. This prevents regenerating the same tests on repeated `khufu-ut` executions.
+
+Follow the module's workflow to build a **skip list**:
+
+1. **Check spec system status**: Read `khufu.yaml` → `spec.enabled`.
+
+2. **If spec enabled AND spec files exist** (Phase 2):
+   - Glob for `specs/**/spec.v*.md`
+   - Parse each spec file for test cases with `status: implemented` AND `Test File:` paths
+   - Filter to `UT-` prefixed cases only
+   - Map `Source File:` fields back to source files → these are already covered
+   - Build the skip list
+
+3. **If spec disabled OR no spec files exist** (Phase 3 — file-based fallback):
+   - Glob for existing test files: `<test-output-dir>/**/*Test*.java` (or language-equivalent pattern)
+   - Infer covered source files: `FooTest.java` → `Foo.java`
+   - Build the skip list from existing test files
+   - **Warn**: File-based fallback is less precise; recommend enabling spec system
+
+4. **Feed skip list forward**: The skip list is consumed by Step 4 (module discovery filters already-covered modules) and Step 5 (generation skips already-covered source files).
+
+**Key rule**: A test that already exists and is tracked in a spec (or detected via file fallback) MUST NOT be regenerated. If the user wants regeneration, they must delete the existing test file first.
 
 ### Step 4: Module Discovery & Testability Assessment
 
@@ -80,18 +107,22 @@ Read the following shared modules to configure the test generation environment:
    - Module name and source directory (e.g., `roncoo-pay-service` → `roncoo-pay-service/src/main/java/`)
    - Number of source files (via Glob count — do NOT read the files yet)
    - Whether test files already exist and how many
+   - **Cross-reference with the skip list from Step 3.2**: Count how many source files in this module are already covered by existing tests (from spec or file fallback)
 
-3. **Build a module inventory table**:
+3. **Build a module inventory table** (include skip counts):
 
    ```markdown
-   | Module | Source Files | Existing Tests | Priority |
-   |--------|-------------|----------------|----------|
-   | roncoo-pay-service | 261 | 1 | HIGH |
-   | roncoo-pay-web-boss | 31 | 0 | MEDIUM |
-   | roncoo-pay-common-core | 24 | 6 | MEDIUM |
-   | roncoo-pay-app-reconciliation | 14 | 0 | LOW |
-   | ... | ... | ... | ... |
+   | Module | Source Files | Already Covered | Needs Tests | Priority |
+   |--------|-------------|-----------------|-------------|----------|
+   | roncoo-pay-service | 261 | 4 | 257 | HIGH |
+   | roncoo-pay-web-boss | 31 | 0 | 31 | MEDIUM |
+   | roncoo-pay-common-core | 24 | 6 | 18 | MEDIUM |
+   | roncoo-pay-app-reconciliation | 14 | 0 | 14 | LOW |
+   | ... | ... | ... | ... | ... |
    ```
+
+   - **If "Needs Tests" = 0 for a module**, mark it as **SKIP — fully covered** and exclude it from generation.
+   - Priority is based on "Needs Tests" count and business criticality.
 
 4. **Single-module fallback**: If no multi-module build file is found, infer the module structure from top-level source directories (e.g., `src/main/java/`). Treat it as a single module and proceed.
 
@@ -109,11 +140,12 @@ Count the total **modules**. Choose strategy:
 **Read `_shared/parallel-execution.md`**. Then partition modules across sub-agents:
 
 1. **Assign modules to sub-agents** using these heuristics:
-   - Modules with >50 source files → dedicated sub-agent (alone)
-   - Modules with 20-50 source files → 1-2 modules per sub-agent
-   - Modules with <20 source files → 2-4 modules per sub-agent (group by domain)
+   - **Skip fully-covered modules**: Modules with "Needs Tests" = 0 in the inventory are excluded. Note them in the skip list but don't assign them.
+   - Modules with >50 "Needs Tests" source files → dedicated sub-agent (alone)
+   - Modules with 20-50 "Needs Tests" source files → 1-2 modules per sub-agent
+   - Modules with <20 "Needs Tests" source files → 2-4 modules per sub-agent (group by domain)
 
-2. **Ensure comprehensive coverage**: Every module in the inventory table MUST be assigned to exactly one sub-agent. Explicitly list which modules each sub-agent is responsible for.
+2. **Ensure comprehensive coverage**: Every module with "Needs Tests" > 0 MUST be assigned to exactly one sub-agent. Explicitly list which modules each sub-agent is responsible for. Also list modules that were skipped (already fully covered).
 
 3. **Launch all sub-agents concurrently** in a single message. Each sub-agent receives a self-contained prompt with:
 
@@ -121,6 +153,9 @@ Count the total **modules**. Choose strategy:
    You are assessing testability and generating unit tests for the following modules:
 
    **Modules assigned**: <module-names with source directories>
+
+   **Skip list** (DO NOT generate tests for these — they already exist):
+   <per-module list of source files that already have tests, from Step 3.2>
 
    **Context**:
    - Language: <language> | Framework: <framework> | Mocking: <mocking-lib>
@@ -132,19 +167,21 @@ Count the total **modules**. Choose strategy:
 
    **Your task** (for EACH assigned module, in order):
    a. Glob for all .java files in the module's source directory
-   b. **Sample 2-3 files** to classify the module's overall testability grade (A/B/C)
-   c. FOR Grade A and Grade B modules: read every source file, generate unit tests
+   b. **Filter out files in the skip list** — do NOT read or generate tests for them
+   c. **Sample 2-3 remaining files** to classify the module's overall testability grade (A/B/C)
+   d. FOR Grade A and Grade B modules: read every non-skipped source file, generate unit tests
       following Step 5 guidelines (AAA pattern, happy path, edge cases, error paths)
-   d. FOR Grade B classes: default to tagging `@Tag("fragile")` / `pytest.mark.fragile`.
+   e. FOR Grade B classes: default to tagging `@Tag("fragile")` / `pytest.mark.fragile`.
       Do NOT ask the user interactively — proceed with the fragile tagging approach.
-   e. FOR Grade C classes/files: record them in a per-module untestable report snippet
-   f. Write all test files to the configured test output directory
-   g. Report a summary: module name, files processed, files skipped (with reason),
-      tests generated (count), fragile test count, untestable file list
+   f. FOR Grade C classes/files: record them in a per-module untestable report snippet
+   g. Write all test files to the configured test output directory
+   h. Report a summary: module name, files processed, files skipped (separate into
+      "already covered" and "Grade C untestable"), tests generated (count),
+      fragile test count, untestable file list
 
    **CRITICAL**: You MUST report back for every module you were assigned, even if
    you generated zero tests for that module. Say "Module X: 0 tests generated because
-   [all files were Grade C / only config classes / etc.]".
+   [all files already covered / all files were Grade C / only config classes / etc.]".
    ```
 
 4. **Collect and cross-check results**: After all sub-agents complete:

@@ -51,7 +51,9 @@ Read the following shared modules to configure the test generation environment:
 
 2. Populate the spec file's `## Evaluation Criteria` section.
 
-### Step 3: Pyramid Dedup Check
+### Step 3: Dedup Checks
+
+#### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating E2E tests:
 
@@ -62,6 +64,31 @@ Read the following shared modules to configure the test generation environment:
    - E2E tests the "story" — the integration of ALL layers from the user's eyes. It doesn't re-verify what lower layers already check.
 3. **Skip** user journeys that are purely single-step operations already well-covered by API tests.
 4. **Keep** user journeys that span multiple pages or involve browser-specific interactions.
+
+#### 3.2 Spec Sync — Incremental Check (Cross-Run)
+
+**Read `_shared/spec-sync.md`.** Before generating E2E tests, check if previous runs have already produced tests. This prevents regenerating the same E2E tests on repeated executions.
+
+Follow the module's workflow to build a **skip list**:
+
+1. **Check spec system status**: Read `khufu.yaml` → `spec.enabled`.
+
+2. **If spec enabled AND spec files exist** (Phase 2):
+   - Glob for `specs/**/spec.v*.md`
+   - Parse each spec file for E2E test cases with `status: implemented` AND `Test File:` paths
+   - Filter to `E2E-` prefixed cases only
+   - Map user journey names back to page flows → these are already covered
+   - Build the skip list
+
+3. **If spec disabled OR no spec files exist** (Phase 3 — file-based fallback):
+   - Glob for existing E2E test files (e.g., `e2e/**/*.spec.ts`)
+   - Extract user journey names from test file names or `test.describe` blocks
+   - Build the skip list
+   - **Warn**: File-based fallback is less precise; recommend enabling spec system
+
+4. **Feed skip list forward**: The skip list is consumed by Step 6 (generation skips already-covered user journeys). In parallel mode, each sub-agent receives the skip list for its assigned journey group.
+
+**Key rule**: An E2E test that already exists and is tracked MUST NOT be regenerated.
 
 ### Step 4: Identify Critical Flows
 

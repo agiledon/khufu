@@ -51,7 +51,9 @@ Read the following shared modules to configure the test generation environment:
 
 2. Populate the spec file's `## Evaluation Criteria` section.
 
-### Step 3: Pyramid Dedup Check
+### Step 3: Dedup Checks
+
+#### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating API tests:
 
@@ -62,6 +64,31 @@ Read the following shared modules to configure the test generation environment:
    - What NEW risk does API add? → HTTP status code mapping, response schema shape, auth middleware behavior, content negotiation.
 3. **Skip scenarios** where API adds no new risk dimension.
 4. Record skipped scenarios with rationale.
+
+#### 3.2 Spec Sync — Incremental Check (Cross-Run)
+
+**Read `_shared/spec-sync.md`.** Before generating API tests, check if previous runs have already produced tests. This prevents regenerating the same API tests on repeated executions.
+
+Follow the module's workflow to build a **skip list**:
+
+1. **Check spec system status**: Read `khufu.yaml` → `spec.enabled`.
+
+2. **If spec enabled AND spec files exist** (Phase 2):
+   - Glob for `specs/**/spec.v*.md`
+   - Parse each spec file for API test cases with `status: implemented` AND `Test File:` paths
+   - Filter to `API-` prefixed cases only
+   - Map endpoint paths back to route handlers → these are already covered
+   - Build the skip list
+
+3. **If spec disabled OR no spec files exist** (Phase 3 — file-based fallback):
+   - Glob for existing API test files in the API test directory
+   - Infer covered endpoints from test file names (e.g., `user.api.test.ts` → `/api/users/*`)
+   - Build the skip list
+   - **Warn**: File-based fallback is less precise; recommend enabling spec system
+
+4. **Feed skip list forward**: The skip list is consumed by Step 5 (generation skips already-covered endpoints). In parallel mode, each sub-agent receives the skip list for its assigned endpoint group.
+
+**Key rule**: An API test that already exists and is tracked MUST NOT be regenerated.
 
 ### Step 4: Setup Test Data Strategy
 

@@ -51,7 +51,9 @@ Read the following shared modules to configure the test generation environment:
 
 2. Populate the spec file's `## Evaluation Criteria` section accordingly.
 
-### Step 3: Pyramid Dedup Check
+### Step 3: Dedup Checks
+
+#### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating IT tests:
 
@@ -64,6 +66,31 @@ Read the following shared modules to configure the test generation environment:
    - Serialization/deserialization: entity ↔ DTO mapping correctness through real layers
 3. **Skip scenarios** where UT already verifies the behavior and IT adds no new risk dimension.
 4. Record skipped scenarios in the report.
+
+#### 3.2 Spec Sync — Incremental Check (Cross-Run)
+
+**Read `_shared/spec-sync.md`.** Before generating integration tests, check if previous runs have already produced tests. This prevents regenerating the same IT tests on repeated executions.
+
+Follow the module's workflow to build a **skip list**:
+
+1. **Check spec system status**: Read `khufu.yaml` → `spec.enabled`.
+
+2. **If spec enabled AND spec files exist** (Phase 2):
+   - Glob for `specs/**/spec.v*.md`
+   - Parse each spec file for IT test cases with `status: implemented` AND `Test File:` paths
+   - Filter to `IT-` prefixed cases only
+   - Map `Source File:` fields or vertical slice descriptions back to components → these are already covered
+   - Build the skip list
+
+3. **If spec disabled OR no spec files exist** (Phase 3 — file-based fallback):
+   - Glob for existing IT test files in the integration test directory
+   - Infer covered vertical slices/components from test file names
+   - Build the skip list
+   - **Warn**: File-based fallback is less precise; recommend enabling spec system
+
+4. **Feed skip list forward**: The skip list is consumed by Step 6 (generation skips already-covered components/vertical slices). In parallel mode, each sub-agent receives the skip list for its assigned modules.
+
+**Key rule**: An integration test that already exists and is tracked MUST NOT be regenerated.
 
 ### Step 4: Select Database Strategy (Java-Specific)
 
