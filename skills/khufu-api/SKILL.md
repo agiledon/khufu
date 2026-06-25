@@ -2,7 +2,7 @@
 name: khufu-api
 description: >-
   This skill should be used when the user wants to generate API tests, asks for "API tests", mentions "API测试", "khufu-api", "REST tests", "contract tests", or wants to test HTTP/REST/gRPC endpoints. Supports spec-based generation (with @path to OpenAPI/Swagger spec or API documentation) and code-based generation (from existing route definitions and handlers). API tests verify the application from the network boundary — status codes, response bodies, headers, and error formats.
-version: 0.1.0
+version: 0.2.0
 allowed-tools:
   - Read
   - Write
@@ -11,6 +11,7 @@ allowed-tools:
   - Glob
   - AskUserQuestion
   - Task
+  - Agent
 ---
 
 # khufu-api: API Test Generator
@@ -25,67 +26,92 @@ Generate API tests — the **service boundary layer** of the test pyramid. API t
 - **Error format validation**: Verify error responses have consistent structure
 - **Auth scenarios**: Test unauthenticated, unauthorized, and authorized access paths
 - **Idempotency**: GET, PUT, DELETE should be idempotent; POST should create new resources
+- **EDD**: Define evaluation criteria first (Read `_shared/evaluation-framework.md`)
 
 ## Workflow
 
-### Step 1: Determine Generation Mode
+### Step 1: Environment Setup (Shared)
 
-**If `$ARGUMENTS` contains a file or directory path** (user provided `@path/to/specs`):
-- SPEC-BASED mode: Read the API spec (OpenAPI/Swagger YAML/JSON, GraphQL schema, API Blueprint, or plain documentation)
+Read the following shared modules to configure the test generation environment:
 
-**If `$ARGUMENTS` is empty**:
-- Use the **AskUserQuestion** tool:
-  1. "Spec-based: I'll provide API specification documents (OpenAPI/Swagger/etc.)"
-  2. "Code-based: Read existing route definitions and handlers"
+1. **Read `_shared/mode-selection.md`** — determines spec-based vs code-based generation mode. For API tests, spec-based mode supports OpenAPI/Swagger (`.yaml`, `.json`), GraphQL schema (`.graphql`), API Blueprint, or Markdown API docs.
+2. **Read `_shared/language-detection.md`** — detects language, build system, and reads `khufu.yaml` configuration.
+3. **Read `_shared/framework-selector.md`** with `layer: api` — selects the API test framework (REST Assured, Supertest, httpx, etc.).
+4. **Read `_shared/directory-resolver.md`** with `layer: api` — determines the output directory.
 
-### Step 2: Detect or Confirm Language
+### Step 2: EDD — Define Evaluation Criteria
 
-1. Check `khufu.yaml` for configured language.
-2. Auto-detect from project files if absent.
-3. Confirm with user using **AskUserQuestion**.
+**Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
 
-### Step 3: Select API Test Framework
+1. For API layer, select applicable dimensions:
+   - **Correctness** (required): status codes, response body shape, header presence
+   - **Contract** (required): schema validation, content-type correctness, error format consistency
+   - **Robustness** (recommended): auth/authz scenarios, rate limiting, CORS headers
+   - **Maintainability** (required): test independence, base URL configurability
 
-Based on the language, present options using **AskUserQuestion**:
+2. Populate the spec file's `## Evaluation Criteria` section.
 
-**For Java**:
-- **REST Assured** (Recommended): Fluent Java DSL for REST API testing. Given/When/Then syntax.
-- **Spring MockMvc** (Recommended for Spring): Server-side testing without deployment.
-- **Pact JVM**: Consumer-driven contract testing between services.
+### Step 3: Pyramid Dedup Check
 
-**For Python**:
-- **pytest + httpx** (Recommended): Modern async HTTP client for testing REST APIs.
-- **pytest + requests**: Classic approach with the popular requests library.
-- **schemathesis**: Property-based API testing from OpenAPI schemas.
+**Read `_shared/test-pyramid-strategy.md`.** Before generating API tests:
 
-**For TypeScript/JavaScript**:
-- **Supertest** (Recommended): HTTP assertion library for Express/Koa/Fastify APIs.
-- **Pact JS**: Consumer-driven contract testing.
-- **k6**: Performance-oriented API testing (for load-bearing API tests).
+1. **Scan for existing UT and IT tests** — use **Glob** to find lower-layer tests.
+2. **For each candidate API test scenario**, check:
+   - Does UT already cover the business logic? → API doesn't need to re-verify logic.
+   - Does IT already cover DB persistence? → API doesn't need to inspect DB.
+   - What NEW risk does API add? → HTTP status code mapping, response schema shape, auth middleware behavior, content negotiation.
+3. **Skip scenarios** where API adds no new risk dimension.
+4. Record skipped scenarios with rationale.
 
-**For Go**:
-- **testing + httptest** (Recommended): Standard library HTTP test server.
-- **go-resty + testing**: Fluent HTTP client for API testing.
+### Step 4: Setup Test Data Strategy
 
-**For C#**:
-- **RestSharp + xUnit** (Recommended): Popular REST client with xUnit integration.
-- **xUnit + WebApplicationFactory**: ASP.NET Core in-memory test server.
+**Read `_shared/test-data-factories.md`.** For API tests:
 
-### Step 4: Determine Test Directory
-
-| Language | API Test Location |
-|----------|-------------------|
-| Java | `src/test/java/<package>/api/` or separate `api-test` module |
-| Python | `tests/api/` |
-| TypeScript/JS | `__tests__/api/` or `tests/api/` |
-| Go | `api/` directory or `*_api_test.go` files |
-| C# | `<Project>.ApiTests/` test project |
-
-Check `khufu.yaml` for custom directory overrides.
+1. **Preferred**: Create test data through the API itself (validate the write path):
+   ```typescript
+   const res = await request(app).post('/api/users').send(aDefaultUser());
+   ```
+2. **Fallback**: For complex prerequisites, seed directly via DB (reuse IT data factories):
+   ```typescript
+   await seedUser(anAdminUser()); // from shared factory
+   ```
 
 ### Step 5: Generate API Tests
 
-#### SPEC-BASED Generation:
+#### 5.0 Parallel Execution (Large Systems)
+
+For large systems with many API endpoints, writing API tests sequentially is time-consuming. Before generating tests, evaluate whether parallel sub-agent execution is appropriate.
+
+**Read `_shared/parallel-execution.md`** and follow its workflow:
+
+1. **Count target API endpoints/resource groups**: If the total number of endpoint groups to test is **>= 3**, parallel execution is warranted.
+
+2. **Detect sub-agent support**: Check if the host agent supports the `Agent` tool for spawning sub-agents.
+
+3. **If sub-agent supported AND target count >= 3**:
+   - **Partition work** following `_shared/parallel-execution.md` Phase 2:
+     - **Code-based**: Group API endpoints by resource (e.g., `/api/users/*`, `/api/orders/*`, `/api/products/*`).
+     - **Spec-based**: Group OpenAPI paths by tag/resource group, or partition spec scenarios by domain.
+   - **Ensure independence**: Partitions should cover disjoint resource paths. If one endpoint depends on data created by another endpoint's partition, either merge partitions or note the dependency for sequential data setup.
+   - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
+     - Assigned API endpoints or spec scenarios
+     - Language, framework (from Steps 1.3, 1.4)
+     - Test directory (from Step 1.5)
+     - Evaluation criteria (from Step 2)
+     - Pyramid dedup results — scenarios to skip (from Step 3)
+     - Test data strategy (from Step 4)
+     - Base URL pattern and auth configuration
+     - Annotation format (from the skill's annotation guidelines)
+     - Instructions to read route handlers or parse spec, generate tests per Steps 5.1-5.2 guidelines, and write test files
+   - **Collect results**: After all sub-agents complete, merge their summaries and endpoint coverage matrices.
+   - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
+   - **Skip Steps 5.1-5.2**. Proceed to Step 6.
+
+4. **If sub-agent NOT supported**: Fall through to Steps 5.1-5.2 for sequential generation.
+
+5. **If target count < 3**: Skip parallel execution. Fall through to Steps 5.1-5.2.
+
+#### 5.1 SPEC-BASED Generation:
 
 1. **Parse the API specification**:
    - **OpenAPI/Swagger** (`.yaml`, `.json`): Parse paths, methods, request/response schemas, status codes, security schemes
@@ -106,10 +132,10 @@ Check `khufu.yaml` for custom directory overrides.
    - **Rate limiting**: (if documented) Test rate limit headers
 
 3. If the spec includes multiple status code responses, generate a test for each documented status code.
-
 4. If the spec includes example request/response pairs, use those as test fixtures.
+5. Each test includes: `// Spec: API-<ENTITY>-<NNN> | Evaluates: <dimension>`
 
-#### CODE-BASED Generation:
+#### 5.2 CODE-BASED Generation:
 
 1. **Discover API routes**: Use **Glob** and **Grep** to find route definitions:
    - Java: `@GetMapping`, `@PostMapping`, `@RequestMapping` (Spring), `@Path` (JAX-RS)
@@ -118,14 +144,9 @@ Check `khufu.yaml` for custom directory overrides.
    - Go: `mux.HandleFunc`, `router.GET`, `r.Group(`
    - C#: `[HttpGet]`, `[HttpPost]`, `MapGet` (ASP.NET Core)
 
-2. **Read each route handler**: Use **Read** to understand:
-   - HTTP method and path (including path parameters)
-   - Required request body/query parameters
-   - Authentication/authorization middleware
-   - Response status codes used
-   - Response body structure
+2. **Read each route handler**: Use **Read** to understand HTTP method, path, params, auth, responses.
 
-3. For each endpoint, generate tests covering:
+3. For each endpoint, after pyramid dedup (Step 3), generate tests covering:
    - **All documented HTTP methods** (GET, POST, PUT, PATCH, DELETE)
    - **Path parameter variations**: valid ID, non-existent ID, malformed ID
    - **Query parameter combinations**: required params, optional params, invalid values
@@ -133,11 +154,11 @@ Check `khufu.yaml` for custom directory overrides.
    - **Auth scenarios**: no token, expired token, wrong role
    - **CORS headers**: (if applicable) OPTIONS preflight, allowed origins
 
-### Step 6: Configure API Coverage Tracking
+### Step 6: Configure API Coverage
 
-Traditional code coverage tools don't apply well to API tests (they test from outside the process). Instead, configure **API coverage** metrics that measure endpoint and contract coverage.
+Traditional code coverage tools don't apply well to API tests. Use **endpoint coverage** instead:
 
-1. **Endpoint Coverage**: Track which API endpoints have tests and which don't. Generate an endpoint coverage matrix:
+1. **Generate an endpoint coverage matrix:**
 
 | Method | Path | Status Codes Tested | Schema Validated |
 |--------|------|--------------------|--------------------|
@@ -145,51 +166,33 @@ Traditional code coverage tools don't apply well to API tests (they test from ou
 | POST | /api/users | 201, 400, 422 | ✅ |
 | DELETE | /api/users/{id} | 204, 404 | N/A |
 
-2. **Status Code Coverage**: For each endpoint, verify that all documented status codes are covered by at least one test.
+2. **Status Code Coverage**: For each endpoint, verify that all documented status codes are covered.
 
-3. **Schema/Contract Coverage**: If using OpenAPI/Swagger:
-   - Use an OpenAPI validator (e.g., `openapi-validator`, `chai-openapi-response-validator`) to verify response schemas
-   - Ensure every schema property is tested
-   - If using Pact for contract testing, verify provider states against consumer expectations
+3. **Schema/Contract Coverage**: If using OpenAPI/Swagger, recommend validators (`openapi-validator`, `chai-openapi-response-validator`, `schemathesis`).
 
-4. **Tools for API Coverage Tracking**:
+4. Document the coverage tracking approach for the selected language.
 
-| Language | API Coverage Approach |
-|----------|----------------------|
-| Java | REST Assured + OpenAPI validator; or generate an endpoint coverage report via custom test listener |
-| Python | pytest + `schemathesis` (property-based API testing from OpenAPI); `pytest-httpserve` for recording |
-| TypeScript/JS | Supertest + `jest-html-reporters`; or `swagger-coverage` tool |
-| Go | `httptest` + custom coverage tracking via test helpers |
+### Step 7: Generate Spec File
 
-5. **If the project has an OpenAPI spec**: Configure `schemathesis` or an OpenAPI coverage tool to measure:
-   - Path coverage (% of documented paths with tests)
-   - Status code coverage per path
-   - Response schema validation pass rate
+Same process — see `_shared/evaluation-framework.md`. Mark generated API test cases with `status: implemented`.
 
-6. **Generate a coverage tracking document** (e.g., `api-coverage.md`) summarizing endpoint coverage, with TODOs for uncovered paths.
-
-### Step 7: Write Tests to Files
+### Step 8: Write Tests to Files
 
 1. Use **Write** to create each test file in the API test directory.
 2. Organize tests by resource/endpoint group.
-3. Include test data/fixtures as constants or helper functions.
+3. Include test data/fixtures as constants or helper functions (referencing shared factories from `_shared/test-data-factories.md`).
 4. Add a base URL configuration that can be overridden by environment variables.
-5. Add a comment indicating generated by khufu-api.
+5. Include spec reference header comment.
 
-### Step 8: Report Summary
+### Step 9: Report Summary
 
-Report:
-- Number of API test files created
-- Number of endpoints covered
-- Coverage by HTTP method (GET, POST, PUT, DELETE, etc.)
-- Coverage by status code category (2xx, 4xx, 5xx)
-- API coverage matrix showing gaps
-- API coverage tooling recommended (e.g., schemathesis, OpenAPI validator)
-- Endpoints that need manual review (complex auth flows, file uploads, etc.)
-- Suggested command to run: how to start the app and execute the API tests
-- Coverage by status code category (2xx, 4xx, 5xx)
-- Endpoints that need manual review (complex auth flows, file uploads, etc.)
-- Suggested command to run: how to start the app and execute the API tests
+**Read `_shared/report-template.md`** and generate using the API-specific sections:
+- Summary table with pyramid skip count
+- Endpoint coverage matrix
+- Coverage by HTTP method and status code category
+- Evaluation Results (if EDD enabled)
+- Spec Coverage (if spec system enabled)
+- Suggested run command (start app + execute tests)
 
 ## API Test Patterns
 
@@ -197,12 +200,16 @@ Report:
 ```java
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
 
+@Tag("api")
 class UserApiTest {
     @Test
+    @DisplayName("API-USER-001: shouldReturnUser_whenValidIdGiven")
+    // Spec: specs/UserRegistration/spec.v1.md
+    // Evaluates: Correctness — HTTP 契约正确
     void shouldReturnUser_whenValidIdGiven() {
         given()
             .contentType(ContentType.JSON)
@@ -215,6 +222,8 @@ class UserApiTest {
     }
 
     @Test
+    @DisplayName("API-USER-002: shouldReturn404_whenUserNotFound")
+    // Evaluates: Contract — 错误状态码覆盖
     void shouldReturn404_whenUserNotFound() {
         given()
             .contentType(ContentType.JSON)
@@ -226,39 +235,18 @@ class UserApiTest {
 }
 ```
 
-### pytest + httpx (Python)
-```python
-import pytest
-import httpx
-
-BASE_URL = "http://localhost:8000"
-
-@pytest.mark.asyncio
-async def test_get_user_valid_id():
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
-        response = await client.get("/api/users/1")
-        assert response.status_code == 200
-        data = response.json()
-        assert "id" in data
-        assert "name" in data
-
-@pytest.mark.asyncio
-async def test_create_user_valid_body():
-    async with httpx.AsyncClient(base_url=BASE_URL) as client:
-        response = await client.post(
-            "/api/users",
-            json={"name": "Alice", "email": "alice@example.com"}
-        )
-        assert response.status_code == 201
-```
-
 ### Supertest (TypeScript)
 ```typescript
 import request from 'supertest';
 import app from '../app';
 
+/**
+ * Spec: specs/UserRegistration/spec.v1.md
+ * Test Cases: API-USER-001, API-USER-002
+ */
 describe('GET /api/users/:id', () => {
   it('should return user with valid id', async () => {
+    // Spec ID: API-USER-001 | Evaluates: Correctness
     const res = await request(app)
       .get('/api/users/1')
       .expect(200);
@@ -267,11 +255,32 @@ describe('GET /api/users/:id', () => {
   });
 
   it('should return 404 for non-existent user', async () => {
+    // Spec ID: API-USER-002 | Evaluates: Contract
     await request(app)
       .get('/api/users/99999')
       .expect(404);
   });
 });
+```
+
+### pytest + httpx (Python)
+```python
+import pytest
+import httpx
+
+BASE_URL = "http://localhost:8000"
+
+@pytest.mark.asyncio
+# Spec: specs/UserRegistration/spec.v1.md
+# Spec ID: API-USER-001
+# Evaluates: Correctness — HTTP 契约正确
+async def test_get_user_valid_id():
+    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+        response = await client.get("/api/users/1")
+        assert response.status_code == 200
+        data = response.json()
+        assert "id" in data
+        assert "name" in data
 ```
 
 ## Contract Testing (Optional)
@@ -290,3 +299,4 @@ If the user mentions "contract testing" or "Pact", also generate consumer contra
 - Group tests by resource (users, orders, products) for readability
 - Each test should be independent (create its own data, clean up if needed)
 - Test the API contract, not the internal implementation
+- Read `_shared/test-data-factories.md` for shared data setup — prefer API-based data creation

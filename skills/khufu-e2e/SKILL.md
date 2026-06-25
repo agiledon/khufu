@@ -2,7 +2,7 @@
 name: khufu-e2e
 description: >-
   This skill should be used when the user wants to generate end-to-end tests, asks for "E2E tests", mentions "端到端测试", "khufu-e2e", "browser tests", "UI tests", or wants to test complete user journeys through the entire system. Supports spec-based generation (with @path to user story or workflow documents) and code-based generation (from existing application routes and pages). E2E tests are the tip of the test pyramid — fewest in number, slowest, but cover the most critical business flows.
-version: 0.1.0
+version: 0.2.0
 allowed-tools:
   - Read
   - Write
@@ -11,6 +11,7 @@ allowed-tools:
   - Glob
   - AskUserQuestion
   - Task
+  - Agent
 ---
 
 # khufu-e2e: End-to-End Test Generator
@@ -25,63 +26,108 @@ Generate end-to-end tests — the **tip** of the test pyramid. E2E tests simulat
 - **User perspective**: Test what the user sees and does, not internal state
 - **Smoke tests**: A small set of E2E tests can serve as production smoke tests
 - **Clean state**: Each test should start from a known, clean system state
+- **EDD**: Define evaluation criteria first, especially User Journey and Correctness dimensions
 
 ## Workflow
 
-### Step 1: Determine Generation Mode
+### Step 1: Environment Setup (Shared)
 
-**If `$ARGUMENTS` contains a file or directory path** (user provided `@path/to/specs`):
-- SPEC-BASED mode: Read user story documents, workflow descriptions, or BDD feature files
+Read the following shared modules to configure the test generation environment:
 
-**If `$ARGUMENTS` is empty**:
-- Use the **AskUserQuestion** tool:
-  1. "Spec-based: I'll provide user stories or workflow documents"
-  2. "Code-based: Read existing application routes and pages to identify critical flows"
+1. **Read `_shared/mode-selection.md`** — determines spec-based vs code-based generation mode. For E2E, spec-based mode reads user story documents, BDD feature files, or workflow descriptions.
+2. **Read `_shared/language-detection.md`** — detects language AND frontend framework (React, Vue, Angular, etc.).
+3. **Read `_shared/framework-selector.md`** with `layer: e2e` — selects Playwright (Recommended), Cypress, or Selenium.
+4. **Read `_shared/directory-resolver.md`** with `layer: e2e` — determines the output directory.
 
-### Step 2: Detect or Confirm Language / Frontend Framework
+### Step 2: EDD — Define Evaluation Criteria
 
-1. Check `khufu.yaml` for configured language.
-2. Auto-detect the frontend framework:
-   - `package.json` with `react` → React
-   - `package.json` with `vue` → Vue
-   - `package.json` with `@angular/core` → Angular
-   - `pom.xml` with `thymeleaf` or `vaadin` → Server-rendered Java
-   - Static HTML → Plain web app
-3. Confirm with user using **AskUserQuestion**.
+**Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
 
-### Step 3: Select E2E Test Framework
+1. For E2E layer, select applicable dimensions:
+   - **Correctness** (required): critical user journey outcomes, observable results
+   - **User Journey** (required): P0/P1 path coverage, multi-page flow completeness
+   - **Maintainability** (required): Page Object pattern usage, stable selectors (`data-testid`)
+   - **Performance** (optional): page load time budgets, navigation timing
 
-E2E frameworks are mostly language-agnostic (test the browser). Present options:
+2. Populate the spec file's `## Evaluation Criteria` section.
 
-**Universal** (work with any language/frontend):
-- **Playwright** (Recommended): Modern cross-browser automation with auto-wait, trace viewer, API mocking. Supports Java, Python, .NET, and JS/TS.
-- **Selenium WebDriver**: Mature browser automation. Broad language support but requires more boilerplate.
+### Step 3: Pyramid Dedup Check
 
-**TypeScript/JavaScript ecosystem**:
-- **Cypress**: Developer-friendly with time-travel debugging and real-time reloads. JavaScript/TypeScript only.
+**Read `_shared/test-pyramid-strategy.md`.** Before generating E2E tests:
 
-**Java ecosystem**:
-- **Playwright (Java)** or **Selenium (Java)**
+1. **Scan for existing UT, IT, and API tests** — use **Glob** to find lower-layer tests.
+2. **For each candidate E2E user journey**, check:
+   - Does UT/IT/API already verify individual steps within this journey?
+   - What NEW risk does E2E add? → cross-page state, browser rendering, visual feedback, network failures during navigation, real user interaction (clicks, keyboard, form fill).
+   - E2E tests the "story" — the integration of ALL layers from the user's eyes. It doesn't re-verify what lower layers already check.
+3. **Skip** user journeys that are purely single-step operations already well-covered by API tests.
+4. **Keep** user journeys that span multiple pages or involve browser-specific interactions.
 
-**Python ecosystem**:
-- **Playwright (Python)** or **Selenium (Python)**
+### Step 4: Identify Critical Flows
 
-### Step 4: Determine Test Directory
+When identifying which flows to test (both spec-based and code-based), prioritize:
 
-E2E tests live in a dedicated directory at the project root:
+1. **Authentication** (highest priority): login, logout, session expiry
+2. **Core business transactions**: the 1-2 things your app exists to do
+3. **Data entry workflows**: forms that users spend significant time on
+4. **Search and navigation**: how users find and access content
+5. **Error recovery**: what happens when things go wrong
 
-| Convention | Directory |
-|------------|-----------|
-| Playwright (default) | `e2e/` or `tests/e2e/` |
-| Cypress | `cypress/e2e/` |
-| Selenium (Java) | `src/test/java/e2e/` |
-| Selenium (Python) | `tests/e2e/` |
+Skip:
+- Edge case UI states (belongs in component/unit tests)
+- Visual regression (use separate visual testing tools)
+- Exhaustive form validation (belongs in unit tests for validation logic)
+- Non-critical admin pages (unless that's the core product)
 
-Check `khufu.yaml` for custom directory overrides.
+### Step 5: Setup Test Data Strategy
 
-### Step 5: Generate E2E Tests
+**Read `_shared/test-data-factories.md`.** For E2E tests:
 
-#### SPEC-BASED Generation:
+1. **Preferred**: Pre-seed data via DB scripts or API seed endpoints before browser tests:
+   ```typescript
+   test.beforeAll(async () => {
+     await seedDatabase({ users: [aDefaultUser(), anAdminUser()] });
+   });
+   ```
+2. Clean up data between test suites — use unique test users or DB reset.
+
+### Step 6: Generate E2E Tests
+
+#### 6.0 Parallel Execution (Large Systems)
+
+For large systems with many critical user journeys, writing E2E tests sequentially is time-consuming. Before generating tests, evaluate whether parallel sub-agent execution is appropriate.
+
+**Read `_shared/parallel-execution.md`** and follow its workflow:
+
+1. **Count target user journeys**: If the total number of E2E test files to generate is **>= 3**, parallel execution is warranted.
+
+2. **Detect sub-agent support**: Check if the host agent supports the `Agent` tool for spawning sub-agents.
+
+3. **If sub-agent supported AND target count >= 3**:
+   - **Partition work** following `_shared/parallel-execution.md` Phase 2:
+     - **Code-based**: Group user journeys by business domain (e.g., Authentication flows, Checkout flows, Account Management flows).
+     - **Spec-based**: Group BDD scenarios or user stories by feature area.
+   - **Ensure independence**: E2E partitions must use isolated test data (different test users, different entities). If two flows share the same user account, assign unique test accounts per partition.
+   - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
+     - Assigned user journeys or spec scenarios
+     - Language, frontend framework, E2E framework — Playwright/Cypress (from Steps 1.2, 1.3)
+     - Test directory (from Step 1.5)
+     - Evaluation criteria (from Step 2)
+     - Pyramid dedup results — scenarios to skip (from Step 3)
+     - Critical flow priorities (from Step 4)
+     - Test data strategy and seed scripts (from Step 5)
+     - Page Object pattern and `data-testid` conventions
+     - Annotation format (from the skill's annotation guidelines)
+     - Instructions to read pages/routes, generate tests per Steps 6.1-6.2 guidelines, and write test files
+   - **Collect results**: After all sub-agents complete, merge their summaries.
+   - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
+   - **Skip Steps 6.1-6.2**. Proceed to Step 7.
+
+4. **If sub-agent NOT supported**: Fall through to Steps 6.1-6.2 for sequential generation.
+
+5. **If target count < 3**: Skip parallel execution. Fall through to Steps 6.1-6.2.
+
+#### 6.1 SPEC-BASED Generation:
 
 1. **Read user story or workflow documents** at the given path.
 2. Parse user journeys — look for:
@@ -89,116 +135,76 @@ Check `khufu.yaml` for custom directory overrides.
    - User stories: "As a <role>, I want to <action>, so that <benefit>"
    - Workflow diagrams/descriptions: step-by-step user actions
    - Acceptance criteria: numbered list of conditions
-3. For each critical user journey, generate an E2E test that:
+3. For each critical user journey (status: `planned`), generate an E2E test:
    - **Given**: Sets up the system state (seed data, login state)
    - **When**: Performs the user actions (click, type, navigate)
-   - **Then**: Verifies the observable outcome (page content, URL, success message, database state)
+   - **Then**: Verifies the observable outcome (page content, URL, success message)
 4. Focus on the **top 3-5 business-critical flows** — not every possible path.
-5. Include cross-browser configuration comments if the spec requires it.
+5. Each test includes: `// Spec: E2E-<ENTITY>-<NNN> | Evaluates: User Journey`
 
-#### CODE-BASED Generation:
+#### 6.2 CODE-BASED Generation:
 
 1. **Discover the application structure**:
    - For web apps: Use **Glob** to find page components, route definitions
    - Use **Read** to understand the main navigation structure and key pages
-2. **Identify critical flows** by examining:
-   - Authentication: login, logout, registration, password reset
-   - Primary CRUD: create, view, edit, delete for core entities
-   - Business workflows: checkout, approval, submission, search
-3. For each identified flow, generate an E2E test:
+2. **Identify critical flows** by examining authentication, CRUD, business workflows.
+3. For each identified flow, after pyramid dedup (Step 3), generate an E2E test:
    - Test name describes the user journey: `userCanLoginAndViewDashboard`
    - Steps are written from the user's perspective
    - Assertions verify user-visible outcomes
    - Use `data-testid` attributes as selectors (recommend adding them if missing)
 
-### Step 6: Generate E2E Test Infrastructure
+### Step 7: Generate E2E Test Infrastructure
 
 Alongside the tests, generate:
 
 1. **Configuration file** (if not present):
-   - Playwright: `playwright.config.ts` or `playwright.config.js`
-   - Cypress: `cypress.config.ts` or `cypress.config.js`
-   - Selenium: test runner configuration
-
-2. **Setup/teardown scripts**:
-   - Database seed/reset script
-   - Application startup commands
-   - Docker Compose for dependent services (if needed)
-
+   - Playwright: `playwright.config.ts` with `webServer`, `trace: 'on-first-retry'`, browsers config
+   - Cypress: `cypress.config.ts`
+2. **Setup/teardown scripts**: database seed/reset, app startup commands, Docker Compose for dependencies
 3. **Page Object Models** (for code-based mode):
-   - Create page object classes for key pages with element locators and action methods
-   - Keep selectors centralized for maintainability
+   - Create page object classes for key pages with centralized element locators
+   - Prefer `data-testid` selectors
 
-### Step 7: Configure E2E Scenario Coverage Tracking
+### Step 8: Configure E2E Scenario Coverage
 
-E2E tests sit at the top of the pyramid — the fewest in number, covering only critical business flows. Traditional code coverage doesn't apply here. Instead, track **scenario coverage** and **user journey coverage**.
+1. Generate a **Scenario Coverage Matrix**:
 
-1. **Generate a Scenario Coverage Matrix** listing every critical user journey and its test status:
+| Priority | User Journey | Test File | Status | Notes |
+|----------|-------------|-----------|--------|-------|
+| P0 | User can login | `login.spec.ts` | ✅ | Happy path + error |
+| P0 | User can complete purchase | `checkout.spec.ts` | ✅ | 3 payment methods |
+| P1 | User can reset password | — | ❌ | Needs implementation |
 
-| Priority | User Journey | Test File | Test Status | Notes |
-|----------|-------------|-----------|-------------|-------|
-| P0 | User can login | `login.spec.ts` | ✅ Generated | Happy path + error case |
-| P0 | User can complete purchase | `checkout.spec.ts` | ✅ Generated | 3 payment methods |
-| P1 | User can reset password | — | ❌ Not covered | Needs implementation |
-| P1 | Admin can view dashboard | `admin.spec.ts` | ✅ Generated | Basic smoke test |
+2. **Categorize by business impact**:
+   - **P0 (Critical)**: Core revenue paths, login — must have 100% coverage
+   - **P1 (Important)**: Secondary flows, error recovery — aim for 80%+
+   - **P2 (Nice-to-have)**: Edge cases, power-user features
 
-2. **Categorize journeys by business impact**:
-   - **P0 (Critical)**: Core revenue paths, login, primary user workflow — must have 100% coverage
-   - **P1 (Important)**: Secondary flows, error recovery, admin functions — aim for 80%+ coverage
-   - **P2 (Nice-to-have)**: Edge cases, power-user features, settings pages
+3. Browser/device coverage: Chromium, Firefox, WebKit; desktop, tablet, mobile viewports.
 
-3. **Track E2E metrics** beyond just scenario counts:
-   - **Browser coverage**: Which browsers are tested (Chromium, Firefox, WebKit)?
-   - **Device coverage**: Desktop, tablet, mobile viewports?
-   - **Path coverage**: Happy path, error path, retry path, timeout path?
+### Step 9: Generate Spec File
 
-4. **Playwright-specific coverage features** (if using Playwright):
-   - Enable `trace: 'on-first-retry'` in config for debugging failures
-   - Use Playwright's built-in test reporter to generate HTML reports with pass/fail/timing
-   - Configure `webServer` in `playwright.config.ts` to auto-start the app
-   - Export test results to CI-friendly formats (JUnit XML, JSON)
+Same process — see `_shared/evaluation-framework.md`. Mark generated E2E test cases with `status: implemented`, update the scenario coverage matrix.
 
-5. **Generate a `e2e-coverage.md` document** summarizing:
-   - Total scenarios defined vs tested
-   - Coverage by priority level (P0/P1/P2)
-   - Browser/device matrix status
-   - Known gaps and what's needed to fill them
-   - Suggested cadence: run smoke tests (P0) on every PR; full E2E nightly
-
-6. **CI Integration hint**: Add a comment in the generated test config showing how to run tests in CI:
-   ```yaml
-   # GitHub Actions example
-   - name: Run E2E tests
-     run: npx playwright test --project=chromium
-   - name: Upload E2E report
-     uses: actions/upload-artifact@v3
-     with:
-       name: e2e-report
-       path: playwright-report/
-   ```
-
-### Step 8: Write Tests to Files
+### Step 10: Write Tests to Files
 
 1. Use **Write** to create E2E test files in the E2E directory.
 2. Use Page Object pattern for maintainability.
 3. Add descriptive test names that read like user journey descriptions.
-4. Include comments linking back to spec/user story references.
-5. Add a comment indicating generated by khufu-e2e.
+4. Include spec reference comments.
+5. Use `data-testid` for selectors (recommend adding attributes if missing).
 
-### Step 9: Report Summary
+### Step 11: Report Summary
 
-Report:
-- Number of E2E test files created
-- Number of user journeys covered
+**Read `_shared/report-template.md`** and generate using the E2E-specific sections:
+- Summary table with pyramid skip count
 - Scenario coverage matrix (P0/P1/P2 breakdown)
 - Browser/device coverage configuration
 - Coverage gaps and what's needed to fill them
-- Suggested command: how to start the system and execute E2E tests with trace
-- Recommended next step: add `data-testid` attributes to UI components for stable selectors
-- Page Objects created
-- Required infrastructure: databases, services, containers
-- Suggested command to run: how to start the system and execute E2E tests
-- Recommended next step: add `data-testid` attributes to UI components for stable selectors
+- Evaluation Results (if EDD enabled)
+- Spec Coverage (if spec system enabled)
+- Suggested run command + CI integration hint
 
 ## E2E Test Patterns
 
@@ -206,6 +212,11 @@ Report:
 ```typescript
 import { test, expect } from '@playwright/test';
 
+/**
+ * Spec: specs/UserRegistration/spec.v1.md
+ * Test Cases: E2E-USER-001
+ * Evaluation: User Journey — 关键用户旅程完整
+ */
 test.describe('User Login Flow', () => {
   test('user can login with valid credentials', async ({ page }) => {
     // Given: User is on the login page
@@ -223,6 +234,7 @@ test.describe('User Login Flow', () => {
   });
 
   test('user sees error with invalid credentials', async ({ page }) => {
+    // Spec ID: E2E-USER-002 | Evaluates: Correctness
     await page.goto('/login');
     await page.fill('[data-testid="email-input"]', 'wrong@example.com');
     await page.fill('[data-testid="password-input"]', 'wrong');
@@ -239,6 +251,7 @@ test.describe('User Login Flow', () => {
 import com.microsoft.playwright.*;
 import org.junit.jupiter.api.*;
 
+@Tag("e2e")
 class LoginE2ETest {
     static Playwright playwright;
     static Browser browser;
@@ -256,6 +269,9 @@ class LoginE2ETest {
     }
 
     @Test
+    @DisplayName("E2E-USER-001: userCanLoginWithValidCredentials")
+    // Spec: specs/UserRegistration/spec.v1.md
+    // Evaluates: User Journey — 关键用户旅程
     void userCanLoginWithValidCredentials() {
         Page page = browser.newPage();
         page.navigate("http://localhost:3000/login");
@@ -284,6 +300,9 @@ def browser():
         yield browser
         browser.close()
 
+# Spec: specs/UserRegistration/spec.v1.md
+# Spec ID: E2E-USER-001
+# Evaluates: User Journey — 关键用户旅程完整
 def test_user_can_login_with_valid_credentials(page: Page):
     page.goto("/login")
     page.fill("[data-testid='email-input']", "user@example.com")
@@ -295,21 +314,18 @@ def test_user_can_login_with_valid_credentials(page: Page):
         .to_contain_text("Welcome back")
 ```
 
-## Critical Flow Identification Guide
+## CI Integration
 
-When identifying which flows to test (code-based mode), prioritize:
-
-1. **Authentication** (highest priority): login, logout, session expiry
-2. **Core business transactions**: the 1-2 things your app exists to do
-3. **Data entry workflows**: forms that users spend significant time on
-4. **Search and navigation**: how users find and access content
-5. **Error recovery**: what happens when things go wrong
-
-Skip:
-- Edge case UI states (belongs in component/unit tests)
-- Visual regression (use separate visual testing tools)
-- Exhaustive form validation (belongs in unit tests for validation logic)
-- Non-critical admin pages (unless that's the core product)
+```yaml
+# GitHub Actions example
+- name: Run E2E tests
+  run: npx playwright test --project=chromium
+- name: Upload E2E report
+  uses: actions/upload-artifact@v4
+  with:
+    name: e2e-report
+    path: playwright-report/
+```
 
 ## Best Practices
 
@@ -320,3 +336,4 @@ Skip:
 - Run E2E tests less frequently than unit/integration tests (nightly or per-release)
 - Debug with traces and screenshots — Playwright's trace viewer is invaluable
 - One E2E test should cover one complete user journey (not a single action)
+- Read `_shared/test-data-factories.md` for shared data setup — use seed scripts for E2E

@@ -2,7 +2,7 @@
 name: khufu-ut
 description: >-
   This skill should be used when the user wants to generate unit tests, asks for "unit tests", mentions "单元测试", "khufu-ut", or wants to write tests at the base of the test pyramid. Supports spec-based generation (with @path to spec documents) and code-based generation (from existing implementations). Unit tests verify individual functions and methods in isolation with all dependencies mocked.
-version: 0.1.0
+version: 0.2.0
 allowed-tools:
   - Read
   - Write
@@ -11,6 +11,7 @@ allowed-tools:
   - Glob
   - AskUserQuestion
   - Task
+  - Agent
 ---
 
 # khufu-ut: Unit Test Generator
@@ -22,194 +23,235 @@ Generate unit tests — the **base layer** of the test pyramid. Unit tests verif
 - **Isolation**: Each test verifies ONE unit (function/method/class) with ALL external dependencies mocked
 - **Speed**: Unit tests should run in < 100ms each
 - **Coverage**: Focus on public API surface, edge cases, boundary conditions, and error paths
-- **TDD**: Follow Red (write failing test) → Green (minimal implementation) → Refactor cycle
+- **EDD**: Define evaluation criteria first, then generate tests to serve those criteria (Read `_shared/evaluation-framework.md`)
 - **AAA Pattern**: Arrange (setup) → Act (execute) → Assert (verify)
 
 ## Workflow
 
-### Step 1: Determine Generation Mode
+### Step 1: Environment Setup (Shared)
 
-**If `$ARGUMENTS` contains a file or directory path** (user provided `@path/to/specs`):
-- The user wants **SPEC-BASED** generation
-- Read the spec file(s) at the provided path
-- Parse: features, scenarios, acceptance criteria, edge cases, error conditions
-- Extract test cases from the spec structure
+Read the following shared modules to configure the test generation environment:
 
-**If `$ARGUMENTS` is empty**:
-- Use the **AskUserQuestion** tool to prompt the user:
-  - **Question**: "Choose test generation mode:"
-  - **Options**:
-    1. "Spec-based: I'll provide spec documents" — then ask the user to provide the spec file or folder path
-    2. "Code-based: Read existing code to generate tests"
+1. **Read `_shared/mode-selection.md`** — determines spec-based vs code-based generation mode. Follow its workflow exactly.
+2. **Read `_shared/language-detection.md`** — detects language, build system, and reads `khufu.yaml` configuration. Follow its workflow exactly.
+3. **Read `_shared/framework-selector.md`** with `layer: ut` — selects the unit test framework and mocking library.
+4. **Read `_shared/directory-resolver.md`** with `layer: ut` — determines the output directory for test files.
 
-### Step 2: Detect or Confirm Language
+### Step 2: EDD — Define Evaluation Criteria
 
-1. First, check for `khufu.yaml` in the project root. If it exists, read it to get the configured language.
-2. If no config file exists, detect the language by scanning project files:
-   - `pom.xml` or `build.gradle` → Java
-   - `package.json` + `tsconfig.json` → TypeScript
-   - `package.json` (no tsconfig) → JavaScript
-   - `pyproject.toml` or `setup.py` → Python
-   - `go.mod` → Go
-   - `Cargo.toml` → Rust
-   - `*.csproj` or `*.sln` → C#
-3. Confirm the detected language with the user using **AskUserQuestion**.
-4. If not detected, ask the user to select the language.
+**Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
 
-### Step 3: Select Test Framework
+1. **Define evaluation criteria BEFORE generating tests.** Based on the UT layer, select applicable dimensions:
+   - **Correctness** (required): behavior correctness for all public methods
+   - **Coverage** (required): line ≥ 80%, branch ≥ 70%, function ≥ 80%
+   - **Performance** (required): each test < 100ms
+   - **Maintainability** (required): naming conventions, test independence, fragile ratio ≤ 20%
 
-Based on the language, present the top frameworks using **AskUserQuestion**. Include brief explanations so the user can make an informed choice:
+2. If in **spec-based mode**: populate the `## Evaluation Criteria` section of the spec file with quantified criteria.
+3. If in **code-based mode**: define criteria in-memory (they will be written to the retroactively-generated spec later).
 
-**For Java**:
-- **JUnit 5** (Recommended): Modern framework with parameterized tests, dynamic tests, extension model. Use for all new projects.
-- **JUnit 4**: Legacy but widely used. Supported by many tools but lacks modern features.
-- **TestNG**: Advanced test configuration with grouping, parallel execution, data providers.
+### Step 3: Pyramid Dedup Check
 
-**For Python**:
-- **pytest** (Recommended): Modern, idiomatic Python testing with fixtures, parameterization, rich plugins.
-- **unittest**: Standard library. No dependencies but less expressive.
+**Read `_shared/test-pyramid-strategy.md`.** As the base layer, UT has no lower layers to check against. However, note:
+- UT OWNS business logic verification — IT/API/E2E should not duplicate these checks
+- In the generated test comments, mark which risk dimensions the test covers (see Step 6 annotation format)
 
-**For TypeScript/JavaScript**:
-- **Jest** (Recommended): Popular with snapshot testing, built-in mocking, code coverage. Use ts-jest for TypeScript.
-- **Vitest** (Recommended): Fast, Vite-native, Jest-compatible API, native TypeScript.
-- **Mocha + Chai**: Flexible and highly customizable. More configuration needed.
+### Step 4: Testability Assessment (New in v0.2.0)
 
-**For Go**:
-- **testing + testify** (Recommended): Standard library with testify for assertions and mocking.
-- **testing (stdlib)**: No external dependencies, pure standard library.
+Before generating tests, assess each source file's testability. This determines HOW tests are generated.
 
-**For C#**:
-- **xUnit** (Recommended): Modern .NET framework with excellent extensibility.
-- **NUnit**: Mature with rich assertion model.
-- **MSTest**: Microsoft official, good VS integration.
+#### 4.1 Discover and Classify Source Files
 
-**For Rust**:
-- **cargo test** (Built-in): The standard Rust test framework. Always use this.
+For **code-based mode**, use **Glob** to find source files (excluding `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `target/`, `__pycache__/`).
 
-### Step 4: Determine Test Directory
+For each source file, read it and classify its testability:
 
-Place tests according to language conventions:
+**Grade A — Directly Testable:**
+- Has dependency injection (constructor/setter)
+- Depends on interfaces, not concrete classes
+- Methods are pure or have mockable side effects
+- → Generate standard unit tests with conventional mocking (Mockito/Jest/pytest-mock)
 
-| Language | Unit Test Location |
-|----------|-------------------|
-| Java (Maven) | `src/test/java/<package>/<SourceClass>Test.java` |
-| Java (Gradle) | `src/test/java/<package>/<SourceClass>Test.java` |
-| Python | Co-located `test_<module>.py` or in `tests/test_<module>.py` |
-| TypeScript/JS (Jest) | `__tests__/<SourceModule>.test.ts` or co-located `<SourceModule>.test.ts` |
-| Go | Same package, `<source>_test.go` |
-| C# | `<Project>.Tests/<SourceClass>Tests.cs` |
-| Rust | Same file in `#[cfg(test)]` module, or `tests/<name>.rs` |
+**Grade B — Needs PowerMock / Advanced Mocking:**
+- Calls static methods
+- Instantiates objects with `new` inside method body
+- Uses final classes or static utilities
+- → Offer user two options (see 4.2)
 
-Check `khufu.yaml` for custom directory overrides.
+**Grade C — Requires Refactoring:**
+- No interfaces, global state, deep nested dependencies
+- Methods doing too many things (no single responsibility)
+- Tight coupling to framework internals
+- → Record to `untestable-report.md`, do NOT generate tests
+
+#### 4.2 Handling Grade B (PowerMock Option)
+
+For Grade B classes, use **AskUserQuestion**:
+
+**Question**: "Class `<ClassName>` has tight coupling (e.g., static calls, `new` in methods). How should I handle it?"
+**Options**:
+1. **"Refactor first (Recommended)"** — Extract interfaces, introduce DI. Then re-run khufu-ut for standard tests.
+2. **"Use PowerMock/Mockito-inline"** — Generate tests with advanced mocking. Tests will be marked `@Tag("fragile")` and excluded from CI by default.
+
+If user chooses option 2, generate tests with:
+- Java: `MockedStatic` (Mockito), `@PrepareForTest` (PowerMock), `@Tag("fragile")`
+- Python: `unittest.mock.patch.object` on class/static methods, `pytest.mark.fragile`
+- TypeScript: `jest.spyOn` on static methods with `// @tag: fragile` comment
+- Go: manual interface extraction + `//go:build fragile` build tag
+- C#: Moq with `[Trait("Category", "Fragile")]`
+
+#### 4.3 Handling Grade C (Untestable)
+
+Generate `untestable-report.md`:
+
+```markdown
+# Untestable Code Report
+
+Generated by khufu-ut v0.2.0 on <date>
+
+| File | Class/Method | Problem | Recommendation |
+|------|-------------|---------|----------------|
+| OrderService.java | calculateTotal() | Direct `new PaymentGateway()` | Extract PaymentGateway interface, use DI |
+| ReportGenerator.java | generate() | Static call chain: `Db.connect().query()` | Introduce Repository interface |
+```
 
 ### Step 5: Generate Unit Tests
 
-#### SPEC-BASED Generation:
+#### 5.0 Parallel Execution (Large Systems)
+
+For large or complex systems, writing tests sequentially is time-consuming. Before generating tests, evaluate whether parallel sub-agent execution is appropriate.
+
+**Read `_shared/parallel-execution.md`** and follow its workflow:
+
+1. **Count target files/scenarios**: If the total number of test files to generate is **>= 3**, parallel execution is warranted.
+
+2. **Detect sub-agent support**: Check if the host agent (Claude Code, OpenCode, etc.) supports the `Agent` tool for spawning sub-agents.
+
+3. **If sub-agent supported AND target count >= 3**:
+   - **Partition work** following `_shared/parallel-execution.md` Phase 2:
+     - **Code-based**: Group source files by module/package (e.g., `src/users/`, `src/orders/`, `src/products/`). Within large modules (>5 files), split further by file.
+     - **Spec-based**: Group scenarios by feature/domain (e.g., User Registration, Authentication, Profile).
+   - **Ensure independence**: Verify partitions don't share mutable dependencies. If `UserService` and `OrderService` both depend on `PaymentGateway`, merge their partitions.
+   - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
+     - Assigned source files or spec scenarios
+     - Language, framework, and mocking library (from Steps 1.3, 1.4)
+     - Test directory (from Step 1.5)
+     - Evaluation criteria (from Step 2)
+     - Testability grades for assigned files (from Step 4)
+     - Annotation format (from Step 6 below)
+     - Instructions to read source, generate tests per Steps 5.1-5.2 guidelines, and write test files
+   - **Collect results**: After all sub-agents complete, merge their summaries (files created, test counts, issues).
+   - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
+   - **Skip Steps 5.1-5.2** (sub-agents already performed generation). Proceed to Step 6.
+
+4. **If sub-agent NOT supported**: Fall through to Steps 5.1-5.2 for sequential generation.
+
+5. **If target count < 3**: Skip parallel execution (overhead > benefit). Fall through to Steps 5.1-5.2.
+
+#### 5.1 SPEC-BASED Generation:
 
 1. Read the spec document(s) at the given path.
 2. Parse test scenarios — look for:
-   - Markdown sections: `## Scenario:`, `**Given**`, `**When**`, `**Then**`
+   - Markdown sections: `### <test-id>: <test-name>`, `**Scenario:**`, `**Given**`/`**When**`/`**Then**`
    - Gherkin: `Feature:`, `Scenario:`, `Given`, `When`, `Then`
    - YAML/JSON: structured test case definitions
-   - Plain text: numbered requirements, expected behaviors
-3. For each scenario/requirement, generate a test method that:
-   - Has a descriptive test name following `should<ExpectedBehavior>_when<Condition>` pattern
-   - Follows AAA (Arrange-Act-Assert) or Given-When-Then structure
+3. For each scenario with `status: planned`, generate a test method that:
+   - Has a descriptive name following `should<ExpectedBehavior>_when<Condition>` pattern
+   - Follows AAA (Arrange-Act-Assert) structure
    - Tests exactly one behavior
-   - Includes a comment or annotation linking back to the spec section
+   - Includes spec reference comment: `// Spec: <spec-id> | Evaluates: <dimension>`
 4. Also generate tests for edge cases and error conditions implied by the spec.
-5. If the spec includes validation rules, generate a test for each rule.
+5. If the spec has Evaluation Criteria, ensure each test maps to at least one criterion.
 
-#### CODE-BASED Generation:
+#### 5.2 CODE-BASED Generation:
 
-1. **Discover source files**: Use **Glob** to find source files excluding `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `target/`, `__pycache__/`.
-2. **Prioritize untested files**: Use **Glob** to find existing test files. Cross-reference to identify source files without corresponding tests. Prioritize these first.
-3. **Read each source file**: Use **Read** to understand:
+1. **Prioritize untested files**: Use **Glob** to find existing test files. Cross-reference to identify source files without corresponding tests. Prioritize these first.
+2. **Read each source file**: Use **Read** to understand:
    - Public functions/methods (the unit's public API)
    - Method signatures (parameters, return types, exceptions)
    - Internal branching logic (if/else, switch, loops, early returns)
    - Dependencies (constructor injection, imports, function parameters)
-4. **Skip trivial code**: Do not generate tests for:
+3. **Skip trivial code**: Do not generate tests for:
    - Simple getters/setters without logic
    - DTOs/POJOs with only fields, no behavior
    - Generated code (look for `@Generated`, `auto-generated` comments, or `.g.` / `.gen.` file patterns)
-5. For each public method, generate tests covering:
+4. For each public method, generate tests covering:
    - **Happy path**: Normal input → expected output
    - **Null/undefined** parameters (if language supports it)
    - **Empty collections**: empty list, empty string, empty map
    - **Boundary values**: zero, negative numbers, max/min values, off-by-one
    - **Error paths**: exceptions thrown, error return codes
    - **State transitions**: for stateful objects, test all valid and invalid transitions
-6. For each test method, ensure it:
-   - Has a clear, descriptive name
+5. For each test, ensure it:
+   - Has a clear, descriptive name following `should<Expected>_when<Condition>`
    - Arranges test data and mocks
    - Acts by calling the method under test
    - Asserts the expected result(s)
    - Is independent of other tests (no shared mutable state)
-7. **Mock external dependencies**: Use the appropriate mocking framework:
-   - Java: Mockito (`org.mockito:mockito-core`)
-   - Python: `unittest.mock` (stdlib) or `pytest-mock`
-   - TypeScript/JS: Jest built-in mocks or Vitest `vi.fn()`
-   - Go: testify mocks or manual interface mocks
-   - C#: Moq or NSubstitute
+   - Includes spec + evaluation annotation (see Step 6 below)
+6. **Mock external dependencies**: Use the framework selected in Step 1.
 
-### Step 6: Configure Code Coverage
+### Step 6: Annotate Tests with Spec and Evaluation References
 
-After generating tests, configure the coverage tool for the selected language/test framework. This ensures users can measure how much of their code is exercised by tests.
+Every generated test must carry these annotations:
 
-1. **Check `khufu.yaml`**: Read the `coverage` section for the configured coverage tool and thresholds.
+```typescript
+/**
+ * Spec: specs/<feature>/spec.v<N>.md  (or "[code-based]" if retroactively generated)
+ * Spec ID: UT-<ENTITY>-<NNN>
+ * Evaluates: <Dimension> — <specific criterion>
+ * Tags: [fragile]  (if applicable)
+ */
+```
 
-2. **Suggest coverage tool** if not already configured:
+For Java:
+```java
+@Tag("ut")
+@Tag("fragile")  // if applicable
+@DisplayName("UT-USER-001: shouldCreateUser_whenValidInputGiven")
+// Spec: specs/UserRegistration/spec.v1.md
+// Evaluates: Correctness — 正常输入返回 User
+@Test
+void shouldCreateUser_whenValidInputGiven() { ... }
+```
 
-| Language | Coverage Tool | How to Run |
-|----------|-------------|------------|
-| Java | JaCoCo | `mvn verify jacoco:report` or `gradle jacocoTestReport` |
-| Python | pytest-cov | `pytest --cov=. --cov-report=html --cov-report=term` |
-| TypeScript/JS (Jest) | Istanbul (built-in) | `jest --coverage` |
-| TypeScript (Vitest) | v8/istanbul (built-in) | `vitest run --coverage` |
-| Go | go test -cover | `go test -coverprofile=coverage.out ./...` |
-| C# | coverlet | `dotnet test /p:CollectCoverage=true` |
+### Step 7: Configure Code Coverage
 
-3. **Configure the build file** to include coverage:
+**Read `_shared/coverage-config.md`** with `layer: ut`. Follow its workflow to:
+1. Check `khufu.yaml` coverage.ut settings
+2. Configure the coverage tool for the selected language/framework
+3. Set thresholds (default: 80% line, 70% branch)
+4. Configure exclusions
+5. Generate coverage run command
 
-   - **Java (Maven)**: Add the JaCoCo plugin to `pom.xml` with threshold rules (minimum 80% line, 70% branch for UT)
-   - **Java (Gradle)**: Add `jacoco` plugin to `build.gradle` with threshold limits
-   - **Python**: Add `[tool.coverage]` section to `pyproject.toml` or `.coveragerc` with omit rules and `fail_under` threshold
-   - **TypeScript/JS (Jest)**: Add `coverageThreshold` and `collectCoverageFrom` to `jest.config.ts` or `package.json`
-   - **TypeScript (Vitest)**: Add `coverage` section to `vitest.config.ts` with provider, thresholds, and exclusions
-   - **Go**: Add a `Makefile` target or shell script for `go test -coverprofile`
-   - **C#**: Add `coverlet.collector` package reference and `<CollectCoverage>` property to `.csproj`
+### Step 8: Generate Spec File
 
-4. **Set sensible default thresholds**:
-   - Unit tests: 80% line coverage, 70% branch coverage
-   - Write threshold rules so the build fails if coverage drops below these values
+**If spec system is enabled** (`spec.enabled: true` in khufu.yaml):
 
-5. **Configure exclusions** (code that should not count toward coverage):
-   - DTOs, entities with only getters/setters
-   - Configuration classes
-   - Generated code
-   - Framework boilerplate (e.g., Spring Boot application class, Express app bootstrap)
+- **Spec-based mode**: Update the spec file — mark generated tests as `status: implemented`, populate test file paths.
+- **Code-based mode**: Generate `specs/<feature>/spec.v1.md` from the generated tests (retroactive specification with `Source: code-based` and `[inferred]` evaluation criteria).
 
-6. **Generate a coverage run script** or document the command in test output.
+See the spec template in `_shared/evaluation-framework.md` for the format.
 
-### Step 7: Write Tests to Files
+### Step 9: Write Tests to Files
 
 1. Use **Write** to create each test file in the correct directory.
 2. Include necessary imports for the test framework and mocking library.
 3. Group related tests in a describe/test class structure appropriate for the language.
-4. Add a file-level comment indicating this was generated by khufu-ut.
-5. IMPORTANT: Write tests using the selected framework's syntax and conventions.
+4. Add file-level header comment with spec references.
+5. Write tests using the selected framework's syntax and conventions.
 
-### Step 8: Report Summary
+### Step 10: Report Summary
 
-After generating tests, report:
-- Number of test files created
-- Number of test methods generated
-- Coverage breakdown (happy path, edge cases, error paths)
-- Coverage tool configured and how to run it
-- Coverage thresholds set and what they enforce
-- Any source files that were skipped and why
-- Suggested next command: run the tests with coverage and verify they compile
+**Read `_shared/report-template.md`** and generate a report using the UT-specific sections:
+- Summary table
+- Testability Assessment table (Grade A/B/C breakdown)
+- Fragile test count and CI exclusion note
+- Coverage configuration
+- Evaluation Results (if EDD enabled)
+- Spec Coverage (if spec system enabled)
+- Files created list
+- Next steps
 
 ## Language-Specific Templates
 
@@ -218,6 +260,8 @@ After generating tests, report:
 package com.example;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -230,6 +274,10 @@ class UserServiceTest {
     private UserService service;
 
     @Test
+    @Tag("ut")
+    @DisplayName("UT-USER-001: shouldReturnUser_whenValidIdGiven")
+    // Spec: specs/UserRegistration/spec.v1.md
+    // Evaluates: Correctness — 正常输入返回 User
     void shouldReturnUser_whenValidIdGiven() {
         // Arrange
         // Act
@@ -244,6 +292,9 @@ import pytest
 from unittest.mock import Mock
 
 class TestUserService:
+    # Spec: specs/UserRegistration/spec.v1.md
+    # Spec ID: UT-USER-001
+    # Evaluates: Correctness — 正常输入返回 User
     def test_should_return_user_when_valid_id_given(self):
         # Arrange
         # Act
@@ -256,6 +307,11 @@ class TestUserService:
 import { describe, it, expect, jest } from '@jest/globals';
 
 describe('UserService', () => {
+  /**
+   * Spec: specs/UserRegistration/spec.v1.md
+   * Spec ID: UT-USER-001
+   * Evaluates: Correctness — 正常输入返回 User
+   */
   it('should return user when valid id given', () => {
     // Arrange
     // Act
@@ -272,4 +328,5 @@ describe('UserService', () => {
 - Never test private methods directly (test through public API)
 - Keep tests DRY but not at the expense of readability
 - Use setup/teardown for shared fixtures, not between-test state
+- Every test must serve at least one evaluation criterion (EDD principle)
 - Run `khufu-ut` frequently — after every significant code change

@@ -1,6 +1,6 @@
 {
   "name": "khufu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Test generation skill framework for AI IDEs, following the test pyramid methodology",
   "type": "module",
   "bin": {
@@ -13,6 +13,7 @@
     ".claude-plugin/"
   ],
   "scripts": {
+    "setup": "bash scripts/link.sh",
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
@@ -52,7 +53,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0",
-    "vitest": "^1.6.0"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=18.0.0"

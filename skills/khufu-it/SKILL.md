@@ -2,7 +2,7 @@
 name: khufu-it
 description: >-
   This skill should be used when the user wants to generate integration tests, asks for "integration tests", mentions "集成测试", "khufu-it", or wants to test how multiple components work together. Supports spec-based generation (with @path to spec documents) and code-based generation (from existing implementations). Integration tests verify multiple real components interacting together, such as service + database or controller + service + repository.
-version: 0.1.0
+version: 0.2.0
 allowed-tools:
   - Read
   - Write
@@ -11,6 +11,7 @@ allowed-tools:
   - Glob
   - AskUserQuestion
   - Task
+  - Agent
 ---
 
 # khufu-it: Integration Test Generator
@@ -19,75 +20,114 @@ Generate integration tests — the **middle layer** of the test pyramid. Integra
 
 ## Core Principles
 
-- **Real components**: Test with real databases, message queues, and services (not mocks)
+- **Real components**: Test with real databases, message queues, and services (not mocks for internal components)
 - **Focused scope**: Test a vertical slice (service + repository + DB), not the whole system
-- **Test containers**: Prefer Docker-based test containers (Testcontainers) for external dependencies
+- **Database strategy**: Choose between lightweight H2 (fast CI) and Testcontainers (production-realistic)
 - **Data isolation**: Each test sets up its own data and cleans up after itself
 - **Transaction boundaries**: Verify that writes actually persist and reads return committed data
-- **TDD**: Follow Red → Green → Refactor cycle adapted for integration scope
+- **EDD**: Define evaluation criteria first (Read `_shared/evaluation-framework.md`)
 
 ## Workflow
 
-### Step 1: Determine Generation Mode
+### Step 1: Environment Setup (Shared)
 
-**If `$ARGUMENTS` contains a file or directory path** (user provided `@path/to/specs`):
-- SPEC-BASED mode: Read the spec file(s) and extract integration scenarios
+Read the following shared modules to configure the test generation environment:
 
-**If `$ARGUMENTS` is empty**:
-- Use the **AskUserQuestion** tool to let the user choose:
-  1. "Spec-based: I'll provide spec documents" → ask for spec path
-  2. "Code-based: Read existing code to generate integration tests"
+1. **Read `_shared/mode-selection.md`** — determines spec-based vs code-based generation mode. Follow its workflow exactly.
+2. **Read `_shared/language-detection.md`** — detects language, build system, and reads `khufu.yaml` configuration. Follow its workflow exactly.
+3. **Read `_shared/framework-selector.md`** with `layer: it` — selects the integration test framework. Note the H2 vs Testcontainers options for Java (see Step 4 for details).
+4. **Read `_shared/directory-resolver.md`** with `layer: it` — determines the output directory for integration test files.
 
-### Step 2: Detect or Confirm Language
+### Step 2: EDD — Define Evaluation Criteria
 
-1. Check `khufu.yaml` for configured language.
-2. If absent, auto-detect from project files.
-3. Confirm with user using **AskUserQuestion**.
+**Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
 
-### Step 3: Select Integration Test Framework
+1. **Define evaluation criteria BEFORE generating tests.** For IT layer, select applicable dimensions:
+   - **Correctness** (required): data persistence, component wiring correctness
+   - **Robustness** (required): transaction rollback, concurrent access, constraint violations
+   - **Coverage** (recommended): line ≥ 60%, branch ≥ 50%
+   - **Performance** (recommended): each test < 2s (H2) / < 10s (PostgreSQL)
+   - **Maintainability** (required): test independence, data isolation
 
-Based on the language, present options using **AskUserQuestion**:
+2. Populate the spec file's `## Evaluation Criteria` section accordingly.
 
-**For Java**:
-- **Spring Boot Test + JUnit 5** (Recommended for Spring): Context loading, auto-configuration, test slices (`@WebMvcTest`, `@DataJpaTest`).
-- **Testcontainers + JUnit 5** (Recommended): Docker-based real database/message queue testing. Works with any framework.
-- **Arquillian**: Deploy to real application server environments (Java EE/Jakarta EE).
+### Step 3: Pyramid Dedup Check
 
-**For Python**:
-- **pytest + testcontainers-python** (Recommended): Docker-based test containers.
-- **pytest-django**: Django-specific fixtures and test client.
-- **pytest-flask**: Flask application testing with test client.
+**Read `_shared/test-pyramid-strategy.md`.** Before generating IT tests:
 
-**For TypeScript/JavaScript**:
-- **Jest + Supertest** (Recommended): HTTP integration testing for Express/Koa/Fastify apps.
-- **Vitest + testcontainers**: Docker-based testing with Vitest.
+1. **Scan for existing UT tests** — use **Glob** to find `__tests__/**/*.test.*` (or language-equivalent UT directories).
+2. **For each candidate IT scenario**, check if a UT already covers the logic. IT should only add tests for:
+   - DB persistence: actual INSERT/UPDATE/DELETE and read-back (UT mocks this)
+   - Transaction boundaries: atomic writes, rollback on failure (UT can't test)
+   - ORM/entity mappings: schema-column alignment (UT doesn't touch DB)
+   - Constraint violations: unique keys, foreign keys, NOT NULL (only DB enforces)
+   - Serialization/deserialization: entity ↔ DTO mapping correctness through real layers
+3. **Skip scenarios** where UT already verifies the behavior and IT adds no new risk dimension.
+4. Record skipped scenarios in the report.
 
-**For Go**:
-- **testing + dockertest** (Recommended): Docker-based test containers for Go.
-- **testing + httptest**: Built-in HTTP test server for handler testing.
+### Step 4: Select Database Strategy (Java-Specific)
 
-**For C#**:
-- **xUnit + Testcontainers** (Recommended): Docker-based test containers for .NET.
-- **xUnit + WebApplicationFactory**: ASP.NET Core integration testing with in-memory test server.
+For Java projects, offer the database strategy choice using **AskUserQuestion**:
 
-### Step 4: Determine Test Directory
+**Question**: "Choose the database strategy for integration tests:"
+**Options**:
+1. **"H2 In-Memory Database (Recommended for fast CI)"** — Zero Docker dependency, tests start in <5s. Suitable for SQL-standard operations. Note: differs from PostgreSQL/MySQL in functions, sequences, and locking behavior.
+2. **"Testcontainers with real database (Production Recommended)"** — Docker-based real database, identical to production. Slower startup (~30s) but catches database-specific issues.
 
-Integration tests typically go in a separate source set or directory:
+**Decision Guide:**
+| Scenario | Recommendation |
+|----------|---------------|
+| PR validation / fast CI feedback | H2 |
+| Testing PostGIS, stored procedures, DB-specific features | Testcontainers |
+| Both can coexist — configure separate Gradle/Maven profiles |
 
-| Language | Integration Test Location |
-|----------|--------------------------|
-| Java (Maven) | `src/test/java/<package>/` with `@Tag("integration")` or separate module |
-| Java (Gradle) | `src/integrationTest/java/` (separate source set) |
-| Python | `tests/integration/` or `integration_tests/` |
-| TypeScript/JS | `__tests__/integration/` or `tests/integration/` |
-| Go | `integration/` directory with `//go:build integration` tag |
-| C# | Separate test project: `<Project>.IntegrationTests/` |
+If not Java, use the Testcontainers-based approach appropriate for the language.
 
-Check `khufu.yaml` for custom directory overrides.
+### Step 5: Setup Test Data Strategy
 
-### Step 5: Generate Integration Tests
+**Read `_shared/test-data-factories.md`.** For IT tests, use the **Repository direct write** pattern:
 
-#### SPEC-BASED Generation:
+1. Define shared test data factories (if not already present) at `src/testFixtures/` or `tests/factories/`.
+2. In IT tests, inject data directly via Repository/ORM to set up preconditions.
+3. Use transaction rollback (`@Transactional` / `transaction=True`) for cleanup — fastest and cleanest.
+4. For distributed tests (parallel execution), use unique data per test (UUID-suffixed identifiers).
+
+### Step 6: Generate Integration Tests
+
+#### 6.0 Parallel Execution (Large Systems)
+
+For large or complex systems, writing integration tests sequentially is time-consuming. Before generating tests, evaluate whether parallel sub-agent execution is appropriate.
+
+**Read `_shared/parallel-execution.md`** and follow its workflow:
+
+1. **Count target vertical slices**: If the total number of integration test files to generate is **>= 3**, parallel execution is warranted.
+
+2. **Detect sub-agent support**: Check if the host agent supports the `Agent` tool for spawning sub-agents.
+
+3. **If sub-agent supported AND target count >= 3**:
+   - **Partition work** following `_shared/parallel-execution.md` Phase 2:
+     - **Code-based**: Group vertical slices by module/domain (e.g., `users/` — UserService + UserRepository, `orders/` — OrderService + OrderRepository, `products/` — ProductService + ProductRepository).
+     - **Spec-based**: Group integration scenarios by feature/domain.
+   - **Ensure independence**: Partitions must not share database tables that would conflict during parallel test execution. If two modules write to the same table, merge their partitions or assign unique data prefixes.
+   - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
+     - Assigned vertical slices or spec scenarios
+     - Language, framework, and mocking library (from Steps 1.3, 1.4)
+     - Test directory (from Step 1.5)
+     - Evaluation criteria (from Step 2)
+     - Pyramid dedup results — scenarios to skip (from Step 3)
+     - Database strategy — H2 or Testcontainers (from Step 4)
+     - Test data factory paths (from Step 5)
+     - Annotation format (from the skill's annotation guidelines)
+     - Instructions to read components, generate tests per Steps 6.1-6.2 guidelines, configure DB, and write test files
+   - **Collect results**: After all sub-agents complete, merge their summaries.
+   - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
+   - **Skip Steps 6.1-6.2**. Proceed to Step 7.
+
+4. **If sub-agent NOT supported**: Fall through to Steps 6.1-6.2 for sequential generation.
+
+5. **If target count < 3**: Skip parallel execution. Fall through to Steps 6.1-6.2.
+
+#### 6.1 SPEC-BASED Generation:
 
 1. Read spec documents at the given path.
 2. Extract integration-level scenarios — look for:
@@ -95,98 +135,150 @@ Check `khufu.yaml` for custom directory overrides.
    - Data persistence: "After saving, the record should be retrievable by ID"
    - Service orchestration: "When order is placed, inventory should be updated and notification sent"
    - Transactional boundaries: "If payment fails, the order should not be created"
-3. For each scenario, generate an integration test that:
+3. For each scenario with `status: planned`, generate an integration test that:
    - Sets up the full component chain (no mocks for internal components)
-   - Uses real or test-container-backed databases
+   - Uses the selected database strategy (H2 or Testcontainers)
    - Verifies side effects across components (DB state, messages published, etc.)
    - Cleans up test data in teardown
+   - Includes spec reference: `// Spec: IT-<ENTITY>-<NNN> | Evaluates: <dimension>`
 
-#### CODE-BASED Generation:
+#### 6.2 CODE-BASED Generation:
 
 1. **Discover the architecture**: Use **Glob** to find:
-   - Service/use-case classes (look for `*Service.java`, `*UseCase.ts`, `*_service.py`, etc.)
-   - Repository/DAO classes (`*Repository.java`, `*DAO.java`, `*Repo.ts`, etc.)
-   - Controller/handler classes (`*Controller.java`, `*Handler.ts`, `*_controller.py`, etc.)
+   - Service/use-case classes (`*Service.java`, `*UseCase.ts`, `*_service.py`)
+   - Repository/DAO classes (`*Repository.java`, `*DAO.java`, `*Repo.ts`)
+   - Controller/handler classes (`*Controller.java`, `*Handler.ts`)
 2. **Identify vertical slices**: Group services with their repositories and controllers.
-3. **Read each component**: Use **Read** to understand:
-   - How components are wired together (dependency injection structure)
-   - Database schema / ORM entity relationships
-   - Transaction boundaries (annotations like `@Transactional`, middleware, etc.)
-   - External service calls (message queues, caches, third-party APIs)
-4. For each vertical slice, generate integration tests covering:
+3. **Read each component**: Use **Read** to understand wiring, schema, transactions, and external calls.
+4. For each vertical slice, after checking pyramid dedup (Step 3), generate tests covering:
    - **Happy path**: Full flow from controller/router → service → repository → database → response
    - **Data persistence**: Verify CRUD operations actually persist and can be retrieved
    - **Transaction rollback**: When an error occurs mid-operation, verify partial changes are rolled back
    - **Concurrent access**: (if applicable) Multiple simultaneous operations on the same data
    - **Schema validation**: Verify entity mappings match the database schema
    - **Cascade operations**: Parent-child entity operations propagate correctly
-5. For external dependencies that are impractical to run in tests (third-party payment gateways, external APIs):
-   - Use test doubles or WireMock/Mountebank for HTTP APIs
+5. For external dependencies impractical to run in tests (payment gateways, external APIs):
+   - Use WireMock/Mountebank for HTTP APIs
    - Use embedded or test-container versions for databases and message queues
 
-### Step 6: Setup Test Infrastructure
+### Step 7: Write Tests with Database Configuration
 
-For each generated test, include setup instructions as comments:
-- Required Docker containers (database, message queue)
-- Database migration/fixture setup
-- Environment variables needed
-- Seed data scripts
+For each test file, include the database configuration as code:
 
-### Step 7: Configure Code Coverage for Integration Tests
+**Java + Spring Boot + H2:**
+```java
+@SpringBootTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@DataJpaTest
+@Tag("integration")
+// Spec: specs/UserRegistration/spec.v1.md
+class UserRepositoryIT {
+    @Autowired private UserRepository repository;
+    @Autowired private TestEntityManager em;
 
-Integration tests benefit from coverage measurement, though with lower thresholds than unit tests (they test fewer lines but more critical paths).
+    @Test
+    @DisplayName("IT-USER-001: shouldPersistUserToDatabase")
+    // Evaluates: Robustness — 数据实际持久化
+    void shouldPersistUserToDatabase() {
+        User user = UserTestData.aDefaultUser().build();
+        User saved = repository.save(user);
+        em.flush();
+        em.clear();
+        User found = em.find(User.class, saved.getId());
+        assertEquals(user.getName(), found.getName());
+    }
+}
+```
 
-1. **Check `khufu.yaml`**: Read `coverage.it` for the configured coverage tool and thresholds.
+**Java + Spring Boot + Testcontainers:**
+```java
+@SpringBootTest
+@Testcontainers
+@Tag("integration")
+class UserRepositoryIT {
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
 
-2. **Configure coverage for integration tests**. The tools are the same as unit tests, but configured for the integration test source set:
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+    // ... tests
+}
+```
 
-| Language | Coverage Tool | Integration Test Run Command |
-|----------|-------------|------------------------------|
-| Java | JaCoCo | `mvn verify jacoco:report -P integration-test` |
-| Python | pytest-cov | `pytest tests/integration/ --cov=. --cov-report=html` |
-| TypeScript/JS (Jest) | Istanbul | `jest --config jest.integration.config.js --coverage` |
-| Go | go test -cover | `go test -coverprofile=coverage.out -tags=integration ./...` |
-| C# | coverlet | `dotnet test --filter Category=Integration /p:CollectCoverage=true` |
+**Python + pytest:**
+```python
+import pytest
+from testcontainers.postgres import PostgresContainer
 
-3. **Set appropriate thresholds** for integration tests:
-   - Integration tests: 60% line coverage, 50% branch coverage
-   - These are lower than UT thresholds because integration tests exercise broader paths
+@pytest.fixture(scope="module")
+def postgres():
+    with PostgresContainer("postgres:16") as pg:
+        yield pg
 
-4. **Configure separate coverage reports** so integration test coverage can be distinguished from unit test coverage:
-   - Output to `coverage/integration/` directory
-   - Use separate report file names (e.g., `coverage-it.lcov` vs `coverage-ut.lcov`)
+# Spec: specs/UserRegistration/spec.v1.md
+# Spec ID: IT-USER-001
+# Evaluates: Robustness — 数据实际持久化
+def test_create_and_get_user(client, postgres):
+    pass
+```
 
-5. **When merging coverage reports**: If the user wants combined UT + IT coverage, configure the tool to merge reports (e.g., JaCoCo aggregate, Istanbul merge, `coverage combine`).
+### Step 8: Configure Code Coverage
 
-### Step 8: Write Tests to Files
+**Read `_shared/coverage-config.md`** with `layer: it`. Follow its workflow:
+1. Check `khufu.yaml` coverage.it settings
+2. Configure separate coverage reports from UT (e.g., `coverage-it/` directory, separate report files)
+3. Set thresholds (default: 60% line, 50% branch for IT)
+4. If user wants combined UT + IT coverage, configure report merging
 
-1. Use **Write** to create each test file in the integration test directory.
-2. Include test class annotations/tags for integration test categorization.
-3. Add setup/teardown methods for database fixtures.
-4. Use the test container pattern for external services.
-5. Add a comment indicating generated by khufu-it.
+### Step 9: Generate Spec File
 
-### Step 9: Report Summary
+Same process as UT — see `_shared/evaluation-framework.md`. Mark generated IT test cases in the spec file with `status: implemented`.
 
-Report:
-- Number of integration test files created
-- Number of vertical slices covered
-- External dependencies configured (databases, queues, etc.)
-- Test data setup included
-- Coverage tool configured and coverage run command
-- Coverage thresholds set (default: 60% line, 50% branch for IT)
-- Suggested next steps: start Docker containers, run migrations, execute tests with coverage
-- External dependencies configured (databases, queues, etc.)
-- Test data setup included
-- Suggested next steps: start Docker containers, run migrations, execute tests
+### Step 10: Report Summary
+
+**Read `_shared/report-template.md`** and generate a report using the IT-specific sections:
+- Summary table with skipped-by-pyramid count
+- Database strategy used (H2 / Testcontainers)
+- External dependencies configured
+- Coverage configuration
+- Evaluation Results (if EDD enabled)
+- Files created
+- Next steps: start Docker containers (if Testcontainers), run migrations, execute tests
 
 ## Integration Test Patterns
 
-### Database Integration
+### H2 Lightweight (Java + Spring Boot)
 ```java
-// Java + Spring Boot + Testcontainers
+@SpringBootTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@DataJpaTest
+@Tag("integration")
+class UserRepositoryIT {
+    @Autowired private UserRepository repository;
+    @Autowired private TestEntityManager em;
+
+    @Test
+    void shouldPersistAndRetrieveUser() {
+        User user = UserTestData.aDefaultUser().build();
+        User saved = repository.save(user);
+        em.flush();
+        em.clear();
+        User found = em.find(User.class, saved.getId());
+        assertNotNull(found);
+        assertEquals(user.getEmail(), found.getEmail());
+    }
+}
+```
+
+### Testcontainers (Java + Spring Boot)
+```java
 @SpringBootTest
 @Testcontainers
+@Tag("integration")
 class UserRepositoryIT {
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
@@ -205,27 +297,12 @@ class UserRepositoryIT {
 }
 ```
 
-### HTTP Service Integration
-```python
-# Python + pytest + testcontainers
-import pytest
-from testcontainers.postgres import PostgresContainer
-
-@pytest.fixture(scope="module")
-def postgres():
-    with PostgresContainer("postgres:16") as pg:
-        yield pg
-
-def test_create_and_get_user(client, postgres):
-    # Full flow: HTTP request → service → repository → DB → response
-    pass
-```
-
 ## Best Practices
 
 - Each integration test should own its data (create in setup, clean in teardown)
-- Use test containers over embedded databases (closer to production)
+- **H2 for fast CI, Testcontainers for production confidence** — use both profiles
 - Tag/categorize integration tests so they can be run separately from unit tests
 - Keep integration tests focused on ONE vertical slice per test
 - Avoid testing business logic in integration tests — that belongs in unit tests
 - Test the wiring, not the logic
+- Read `_shared/test-data-factories.md` for shared data setup patterns
