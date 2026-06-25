@@ -56,51 +56,159 @@ Read the following shared modules to configure the test generation environment:
 - UT OWNS business logic verification — IT/API/E2E should not duplicate these checks
 - In the generated test comments, mark which risk dimensions the test covers (see Step 6 annotation format)
 
-### Step 4: Testability Assessment (New in v0.2.0)
+### Step 4: Module Discovery & Testability Assessment
 
-Before generating tests, assess each source file's testability. This determines HOW tests are generated.
+**Purpose**: Discover ALL modules in the project, then assess source file testability at module granularity. This ensures no module is overlooked, regardless of its size.
 
-#### 4.1 Discover and Classify Source Files
+#### 4.0 Module Discovery (Multi-Module Projects)
 
-For **code-based mode**, use **Glob** to find source files (excluding `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `target/`, `__pycache__/`).
+**BEFORE touching individual files**, enumerate the full module/packaging structure. This is the critical step that prevents the agent from focusing only on the largest or most prominent modules.
 
-For each source file, read it and classify its testability:
+1. **Read the build/project descriptor** to extract the module list:
 
-**Grade A — Directly Testable:**
-- Has dependency injection (constructor/setter)
-- Depends on interfaces, not concrete classes
-- Methods are pure or have mockable side effects
-- → Generate standard unit tests with conventional mocking (Mockito/Jest/pytest-mock)
+   | Build System | File to Read | What to Extract |
+   |-------------|-------------|-----------------|
+   | Maven | `pom.xml` | `<modules>` list |
+   | Gradle | `settings.gradle` or `settings.gradle.kts` | `include` / `includeFlat` directives |
+   | Go workspace | `go.work` | `use` directives |
+   | npm/pnpm/yarn workspaces | `package.json` | `workspaces` array |
+   | Nx | `nx.json` | project entries |
+   | Turborepo | `turbo.json` + `package.json` workspaces |
+   | SBT (Scala) | `build.sbt` | sub-project definitions |
 
-**Grade B — Needs PowerMock / Advanced Mocking:**
-- Calls static methods
-- Instantiates objects with `new` inside method body
-- Uses final classes or static utilities
-- → Offer user two options (see 4.2)
+2. **For each module, record**:
+   - Module name and source directory (e.g., `roncoo-pay-service` → `roncoo-pay-service/src/main/java/`)
+   - Number of source files (via Glob count — do NOT read the files yet)
+   - Whether test files already exist and how many
 
-**Grade C — Requires Refactoring:**
-- No interfaces, global state, deep nested dependencies
-- Methods doing too many things (no single responsibility)
-- Tight coupling to framework internals
-- → Record to `untestable-report.md`, do NOT generate tests
+3. **Build a module inventory table**:
 
-#### 4.2 Handling Grade B (PowerMock Option)
+   ```markdown
+   | Module | Source Files | Existing Tests | Priority |
+   |--------|-------------|----------------|----------|
+   | roncoo-pay-service | 261 | 1 | HIGH |
+   | roncoo-pay-web-boss | 31 | 0 | MEDIUM |
+   | roncoo-pay-common-core | 24 | 6 | MEDIUM |
+   | roncoo-pay-app-reconciliation | 14 | 0 | LOW |
+   | ... | ... | ... | ... |
+   ```
 
-For Grade B classes, use **AskUserQuestion**:
+4. **Single-module fallback**: If no multi-module build file is found, infer the module structure from top-level source directories (e.g., `src/main/java/`). Treat it as a single module and proceed.
 
-**Question**: "Class `<ClassName>` has tight coupling (e.g., static calls, `new` in methods). How should I handle it?"
+#### 4.1 Scale Assessment — Parallel vs Sequential
+
+Count the total **modules**. Choose strategy:
+
+| Modules | Strategy |
+|---------|----------|
+| 1-2 | **Sequential per module** — single agent processes all files. Use sampling (4.2). |
+| >= 3 | **Parallel by module** — if Agent tool available. Otherwise fall back to sequential. |
+
+##### 4.1.1 Parallel Execution (Modules >= 3 AND Agent Tool Available)
+
+**Read `_shared/parallel-execution.md`**. Then partition modules across sub-agents:
+
+1. **Assign modules to sub-agents** using these heuristics:
+   - Modules with >50 source files → dedicated sub-agent (alone)
+   - Modules with 20-50 source files → 1-2 modules per sub-agent
+   - Modules with <20 source files → 2-4 modules per sub-agent (group by domain)
+
+2. **Ensure comprehensive coverage**: Every module in the inventory table MUST be assigned to exactly one sub-agent. Explicitly list which modules each sub-agent is responsible for.
+
+3. **Launch all sub-agents concurrently** in a single message. Each sub-agent receives a self-contained prompt with:
+
+   ```
+   You are assessing testability and generating unit tests for the following modules:
+
+   **Modules assigned**: <module-names with source directories>
+
+   **Context**:
+   - Language: <language> | Framework: <framework> | Mocking: <mocking-lib>
+   - Test output directory: <test-dir>
+   - Evaluation criteria: <summary from Step 2>
+   - The testability grading rubric is: [Grade A/B/C definitions from 4.2-4.4 below]
+   - Annotation format: [exact format from Step 6]
+   - Coverage thresholds: line ≥ 80%, branch ≥ 70% (from khufu.yaml or defaults)
+
+   **Your task** (for EACH assigned module, in order):
+   a. Glob for all .java files in the module's source directory
+   b. **Sample 2-3 files** to classify the module's overall testability grade (A/B/C)
+   c. FOR Grade A and Grade B modules: read every source file, generate unit tests
+      following Step 5 guidelines (AAA pattern, happy path, edge cases, error paths)
+   d. FOR Grade B classes: default to tagging `@Tag("fragile")` / `pytest.mark.fragile`.
+      Do NOT ask the user interactively — proceed with the fragile tagging approach.
+   e. FOR Grade C classes/files: record them in a per-module untestable report snippet
+   f. Write all test files to the configured test output directory
+   g. Report a summary: module name, files processed, files skipped (with reason),
+      tests generated (count), fragile test count, untestable file list
+
+   **CRITICAL**: You MUST report back for every module you were assigned, even if
+   you generated zero tests for that module. Say "Module X: 0 tests generated because
+   [all files were Grade C / only config classes / etc.]".
+   ```
+
+4. **Collect and cross-check results**: After all sub-agents complete:
+   - Compare reported modules against the inventory table from 4.0
+   - **If any module is missing from the results**, that module was dropped — process it sequentially now
+   - Merge per-module reports into a unified summary
+   - Proceed to **Step 6** (sub-agents already performed Steps 5.1-5.2 for their modules)
+
+5. **Handle sub-agent failures**: If a sub-agent completely fails (no result returned), process all of its assigned modules sequentially.
+
+##### 4.1.2 Sequential Fallback (Modules < 3 OR Agent Tool Unavailable)
+
+Proceed to 4.2 for file-level discovery with sampling.
+
+#### 4.2 File-Level Discovery with Sampling (Sequential Path)
+
+When processing sequentially, use **sampling** to keep the assessment manageable. Do NOT attempt to read every source file — this is the primary cause of module omission.
+
+1. **Glob for source files** in the target source directory, excluding `target/`, `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, `__pycache__/`.
+
+2. **Group files by package/namespace** (for Java: the package directory; for others: the immediate parent directory).
+
+3. **For each package group, sample 2-3 representative files** — pick files with different roles:
+   - A service/business-logic class (heaviest logic)
+   - A simple utility or helper class
+   - A controller/handler or data-access class
+
+4. **Read the sampled files and classify the GROUP** (not individual files):
+
+   **Grade A — Directly Testable:**
+   - Dominant pattern: dependency injection (constructor/setter), depends on interfaces, pure methods
+   - → Generate standard unit tests with conventional mocking (Mockito/Jest/pytest-mock)
+
+   **Grade B — Needs PowerMock / Advanced Mocking:**
+   - Dominant pattern: calls static methods, `new` inside method body, final classes
+   - → Default to fragile-tagged tests (see 4.3). Do NOT ask the user per-class in sequential mode — batch the decision.
+
+   **Grade C — Requires Refactoring:**
+   - Dominant pattern: no interfaces, global state, framework-internal tight coupling, methods with multiple responsibilities
+   - → Record to `untestable-report.md`, do NOT generate tests
+
+5. **Extrapolate**: If 2/3 sampled files are Grade A, treat the package as Grade A. If mixed (1 A + 1 B + 1 C), read 2 more files to break the tie. Erring on the lower grade is safer.
+
+6. **Log the sampling**: In the report, note: "Package X: sampled 3 of 15 files (A: 2, B: 1). Extrapolated as Grade A with moderate confidence."
+
+#### 4.3 Handling Grade B (PowerMock Option)
+
+**In parallel mode**: Sub-agents default to fragile-tagged tests without prompting the user (interactive prompts don't work across sub-agents).
+
+**In sequential mode**: Use a single **AskUserQuestion** for ALL Grade B classes at once:
+
+**Question**: "Found <N> classes with tight coupling (static calls, `new` in methods): `<list-of-classes>`. How should I handle them?"
 **Options**:
-1. **"Refactor first (Recommended)"** — Extract interfaces, introduce DI. Then re-run khufu-ut for standard tests.
-2. **"Use PowerMock/Mockito-inline"** — Generate tests with advanced mocking. Tests will be marked `@Tag("fragile")` and excluded from CI by default.
+1. **"Generate with fragile tags"** — Mark them `@Tag("fragile")` / `pytest.mark.fragile`. Excluded from CI by default. Run on weekly schedule.
+2. **"Skip for now, I'll refactor first"** — Record to `untestable-report.md` with refactoring recommendations.
 
-If user chooses option 2, generate tests with:
+If the user chooses option 1, generate tests with:
 - Java: `MockedStatic` (Mockito), `@PrepareForTest` (PowerMock), `@Tag("fragile")`
 - Python: `unittest.mock.patch.object` on class/static methods, `pytest.mark.fragile`
 - TypeScript: `jest.spyOn` on static methods with `// @tag: fragile` comment
 - Go: manual interface extraction + `//go:build fragile` build tag
 - C#: Moq with `[Trait("Category", "Fragile")]`
 
-#### 4.3 Handling Grade C (Untestable)
+#### 4.4 Handling Grade C (Untestable)
 
 Generate `untestable-report.md`:
 
@@ -109,44 +217,27 @@ Generate `untestable-report.md`:
 
 Generated by khufu-ut v0.2.0 on <date>
 
-| File | Class/Method | Problem | Recommendation |
-|------|-------------|---------|----------------|
-| OrderService.java | calculateTotal() | Direct `new PaymentGateway()` | Extract PaymentGateway interface, use DI |
-| ReportGenerator.java | generate() | Static call chain: `Db.connect().query()` | Introduce Repository interface |
+Module coverage: <N> of <M> modules assessed
+
+| Module | File | Class/Method | Problem | Recommendation |
+|--------|------|-------------|---------|----------------|
+| roncoo-pay-web-boss | ShiroConfig.java | — | Pure framework config, no business logic | Skip; config classes not unit-testable |
+| roncoo-pay-service | OrderService.java | calculateTotal() | Direct `new PaymentGateway()` | Extract PaymentGateway interface, use DI |
 ```
 
 ### Step 5: Generate Unit Tests
 
-#### 5.0 Parallel Execution (Large Systems)
+#### 5.0 Parallel Execution Gate
 
-For large or complex systems, writing tests sequentially is time-consuming. Before generating tests, evaluate whether parallel sub-agent execution is appropriate.
+**Check Step 4 outcome**: If Step 4.1.1 already launched parallel sub-agents (multi-module project, >= 3 modules, Agent available), those sub-agents already generated the tests. **Skip to Step 6**.
 
-**Read `_shared/parallel-execution.md`** and follow its workflow:
+**Otherwise** (sequential path from Step 4.1.2): Evaluate whether to use parallel execution for the generation phase itself:
 
-1. **Count target files/scenarios**: If the total number of test files to generate is **>= 3**, parallel execution is warranted.
+1. **Count remaining test targets** (files/spec scenarios classified as Grade A or B in Step 4.2).
 
-2. **Detect sub-agent support**: Check if the host agent (Claude Code, OpenCode, etc.) supports the `Agent` tool for spawning sub-agents.
+2. **If target count >= 3 AND Agent tool available**: Follow `_shared/parallel-execution.md` to partition the remaining work by package/module and launch parallel sub-agents. Skip Steps 5.1-5.2.
 
-3. **If sub-agent supported AND target count >= 3**:
-   - **Partition work** following `_shared/parallel-execution.md` Phase 2:
-     - **Code-based**: Group source files by module/package (e.g., `src/users/`, `src/orders/`, `src/products/`). Within large modules (>5 files), split further by file.
-     - **Spec-based**: Group scenarios by feature/domain (e.g., User Registration, Authentication, Profile).
-   - **Ensure independence**: Verify partitions don't share mutable dependencies. If `UserService` and `OrderService` both depend on `PaymentGateway`, merge their partitions.
-   - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
-     - Assigned source files or spec scenarios
-     - Language, framework, and mocking library (from Steps 1.3, 1.4)
-     - Test directory (from Step 1.5)
-     - Evaluation criteria (from Step 2)
-     - Testability grades for assigned files (from Step 4)
-     - Annotation format (from Step 6 below)
-     - Instructions to read source, generate tests per Steps 5.1-5.2 guidelines, and write test files
-   - **Collect results**: After all sub-agents complete, merge their summaries (files created, test counts, issues).
-   - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
-   - **Skip Steps 5.1-5.2** (sub-agents already performed generation). Proceed to Step 6.
-
-4. **If sub-agent NOT supported**: Fall through to Steps 5.1-5.2 for sequential generation.
-
-5. **If target count < 3**: Skip parallel execution (overhead > benefit). Fall through to Steps 5.1-5.2.
+3. **If target count < 3 OR Agent unavailable**: Proceed to Steps 5.1-5.2 for sequential generation.
 
 #### 5.1 SPEC-BASED Generation:
 
