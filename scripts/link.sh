@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# khufu local development setup — creates symlinks so Claude Code
+# khufu-kit local development setup — creates symlinks so Claude Code
 # loads skills directly from the source tree. Run once after clone.
 #
 # Usage: bash scripts/link.sh
@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SKILLS_SRC="$ROOT/skills"
 CLAUDIE_SKILLS="$ROOT/.claude/skills"
 
-echo "==> Setting up khufu for local development..."
+echo "==> Setting up khufu-kit for local development..."
 echo "    Root: $ROOT"
 
 # 1. Symlink _shared/ at project root so skill references resolve

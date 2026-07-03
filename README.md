@@ -23,7 +23,7 @@ Khufu provides four skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e
 
 ```bash
 # Install globally
-npm install -g khufu
+npm install -g khufu-kit
 
 # Initialize in your project
 cd your-project
@@ -195,7 +195,7 @@ Skills reference `_shared/` modules via Read-tool delegation — shared logic is
 A single command symlinks the skills into place so Claude Code loads them directly from your working tree:
 
 ```bash
-git clone https://github.com/khufu-framework/khufu.git
+git clone https://github.com/agiledon/khufu.git
 cd khufu
 npm install
 npm run build
@@ -220,8 +220,8 @@ npm run dev      # watch mode (tsc --watch)
 Use `npm link` to register the local khufu CLI globally, then initialize it in your target project:
 
 ```bash
-# Step 1: Build khufu from source
-cd /path/to/khufu
+# Step 1: Build khufu-kit from source
+cd /path/to/khufu-kit
 npm install
 npm run build
 npm link                    # registers 'khufu' command globally
@@ -231,10 +231,10 @@ cd /path/to/your-project
 khufu init                  # creates khufu.yaml, installs skills into .claude/skills/
 ```
 
-To pick up changes after editing khufu's source:
+To pick up changes after editing khufu-kit's source:
 
 ```bash
-cd /path/to/khufu
+cd /path/to/khufu-kit
 npm run build               # recompile TypeScript
 # The 'khufu' command now uses the updated build automatically (npm link)
 ```
@@ -242,15 +242,15 @@ npm run build               # recompile TypeScript
 To undo the global link when done:
 
 ```bash
-cd /path/to/khufu
-npm unlink -g khufu
+cd /path/to/khufu-kit
+npm unlink -g khufu-kit
 ```
 
 Alternatively, use `npm install` with a local path (no global link):
 
 ```bash
 cd /path/to/your-project
-npm install /path/to/khufu
+npm install /path/to/khufu-kit
 npx khufu init
 ```
 

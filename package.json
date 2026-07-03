@@ -1,7 +1,7 @@
 {
-  "name": "khufu",
+  "name": "khufu-kit",
   "version": "0.2.0",
-  "description": "Test generation skill framework for AI IDEs, following the test pyramid methodology",
+  "description": "Test generation skill framework for AI IDEs, following the test pyramid methodology. Provides /khufu-ut, /khufu-it, /khufu-api, and /khufu-e2e skills.",
   "type": "module",
   "bin": {
     "khufu": "./dist/index.js"
@@ -30,7 +30,8 @@
     "e2e-test",
     "claude-code",
     "skill",
-    "tdd"
+    "tdd",
+    "khufu-kit"
   ],
   "author": {
     "name": "Khufu Authors"
@@ -38,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/khufu-framework/khufu"
+    "url": "https://github.com/agiledon/khufu"
   },
   "dependencies": {
     "chalk": "^5.3.0",
