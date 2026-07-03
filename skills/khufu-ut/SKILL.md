@@ -37,6 +37,21 @@ Read the following shared modules to configure the test generation environment:
 3. **Read `_shared/framework-selector.md`** with `layer: ut` — selects the unit test framework and mocking library.
 4. **Read `_shared/directory-resolver.md`** with `layer: ut` — determines the output directory for test files.
 
+### Step 1.5: Verify Source Compilation (Pre-Generation)
+
+**Read `_shared/compilation-verification.md` Phase 0** and follow its workflow:
+
+1. **Determine the build command** for the detected language and build system.
+2. **Run source compilation** using **Bash** to verify the target project compiles BEFORE generating tests.
+3. **If compilation FAILS**:
+   - Categorize the errors (missing dependencies, build config, source code errors, missing tools).
+   - **Report the diagnosis to the user** with specific, actionable fix suggestions.
+   - **DO NOT proceed** with test generation — generated tests would also fail to compile.
+   - Exit gracefully after providing the diagnosis and fix suggestions.
+4. **If compilation SUCCEEDS**: log confirmation and continue to Step 2.
+
+**Key rule**: A project that doesn't compile cannot have meaningful tests generated for it. Always verify compilation first.
+
 ### Step 2: EDD — Define Evaluation Criteria
 
 **Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
@@ -369,7 +384,39 @@ See the spec template in `_shared/evaluation-framework.md` for the format.
 4. Add file-level header comment with spec references.
 5. Write tests using the selected framework's syntax and conventions.
 
-### Step 10: Report Summary
+### Step 10: Verify Test Compilation & Execution
+
+**These are mandatory quality gates** before reporting. Tests that don't compile or can't run are not useful.
+
+#### 10-A: Verify Test Compilation
+
+**Read `_shared/compilation-verification.md` Phase 1** and follow its workflow:
+
+1. **Run the test compilation command** for the language and framework.
+2. **If test compilation FAILS**:
+   - Categorize errors (missing imports, wrong API usage, missing test deps, directory mismatch).
+   - **Auto-fix** fixable errors (missing imports, minor API corrections) — up to 3 retries.
+   - **Report unfixable errors** with specific diagnosis and fix suggestions.
+3. **If test compilation SUCCEEDS**: log confirmation and proceed to test execution.
+
+#### 10-B: Verify Test Execution
+
+**Read `_shared/test-execution-verification.md`** and follow its workflow:
+
+1. **Check runtime prerequisites**: test runner available, framework config exists, test file naming conventions match.
+2. **Run a dry-run smoke test** with a single simple test to verify the framework is correctly configured.
+3. **If the dry-run fails with a RUNTIME error** (not assertion failure):
+   - Diagnose: framework config? missing runtime deps? naming convention mismatch?
+   - Fix configuration issues automatically where possible.
+   - Report unfixable issues with actionable suggestions.
+4. **Run all generated tests** and capture results.
+5. **Categorize results**:
+   - ✅ **Passed** — test assertions passed
+   - ❌ **Failed (assertion)** — test ran but assertion failed (acceptable: the test is working, pointing to a bug or wrong expectation)
+   - 💥 **Runtime Error** — test could not execute (NOT acceptable: needs fixing)
+6. **Report the execution summary**, clearly distinguishing assertion failures (test logic) from runtime errors (config/infra).
+
+### Step 11: Report Summary
 
 **Read `_shared/report-template.md`** and generate a report using the UT-specific sections:
 - Summary table

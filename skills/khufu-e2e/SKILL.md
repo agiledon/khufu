@@ -39,6 +39,15 @@ Read the following shared modules to configure the test generation environment:
 3. **Read `_shared/framework-selector.md`** with `layer: e2e` — selects Playwright (Recommended), Cypress, or Selenium.
 4. **Read `_shared/directory-resolver.md`** with `layer: e2e` — determines the output directory.
 
+### Step 1.5: Verify Source Compilation (Pre-Generation)
+
+**Read `_shared/compilation-verification.md` Phase 0** and follow its workflow:
+
+1. **Determine the build command** for the detected language and frontend framework.
+2. **Run compilation** (frontend + backend if applicable) to verify the project builds.
+3. **If compilation FAILS**: categorize errors, report diagnosis with fix suggestions. **DO NOT proceed** with test generation.
+4. **If compilation SUCCEEDS**: log confirmation and continue to Step 2.
+
 ### Step 2: EDD — Define Evaluation Criteria
 
 **Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
@@ -137,8 +146,8 @@ For large systems with many critical user journeys, writing E2E tests sequential
    - **Ensure independence**: E2E partitions must use isolated test data (different test users, different entities). If two flows share the same user account, assign unique test accounts per partition.
    - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
      - Assigned user journeys or spec scenarios
-     - Language, frontend framework, E2E framework — Playwright/Cypress (from Steps 1.2, 1.3)
-     - Test directory (from Step 1.5)
+     - Language, frontend framework, E2E framework — Playwright/Cypress (from Step 1.2 and Step 1.3)
+     - Test directory (from Step 1.4)
      - Evaluation criteria (from Step 2)
      - Pyramid dedup results — scenarios to skip (from Step 3)
      - Critical flow priorities (from Step 4)
@@ -222,7 +231,32 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated E2E test 
 4. Include spec reference comments.
 5. Use `data-testid` for selectors (recommend adding attributes if missing).
 
-### Step 11: Report Summary
+### Step 11: Verify Test Compilation & Execution
+
+#### 11-A: Verify Test Compilation
+
+**Read `_shared/compilation-verification.md` Phase 1** and follow its workflow:
+
+1. **Run the test compilation command** (TypeScript check for Playwright/Cypress tests).
+2. **If test compilation FAILS**: categorize, auto-fix (up to 3 retries), or report unfixable errors.
+3. **Note for E2E**: Playwright/Cypress config files may need TypeScript types. Ensure `@playwright/test` or `cypress` is in devDependencies.
+
+#### 11-B: Verify Test Execution
+
+**Read `_shared/test-execution-verification.md`** and follow its workflow:
+
+1. **Check E2E-specific prerequisites**:
+   - Playwright/Cypress installed: `npx playwright --version` or `npx cypress --version`.
+   - Browser binaries installed: `npx playwright install chromium` (if not installed).
+   - Application start command identified.
+   - Base URL configured in `playwright.config.ts` or `cypress.config.ts`.
+2. **Start the application** (or verify it's running) — needed for browser tests.
+3. **Run a dry-run smoke test** — navigate to the app's home page and verify it loads.
+4. **If runtime error**: diagnose (app not running? wrong port? browser driver missing?) and report fix.
+5. **Run all generated E2E tests** and categorize results.
+6. **Report execution summary** with emphasis on which user journeys are covered.
+
+### Step 12: Report Summary
 
 **Read `_shared/report-template.md`** and generate using the E2E-specific sections:
 - Summary table with pyramid skip count

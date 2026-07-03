@@ -39,6 +39,15 @@ Read the following shared modules to configure the test generation environment:
 3. **Read `_shared/framework-selector.md`** with `layer: api` — selects the API test framework (REST Assured, Supertest, httpx, etc.).
 4. **Read `_shared/directory-resolver.md`** with `layer: api` — determines the output directory.
 
+### Step 1.5: Verify Source Compilation (Pre-Generation)
+
+**Read `_shared/compilation-verification.md` Phase 0** and follow its workflow:
+
+1. **Determine the build command** for the detected language and build system.
+2. **Run source compilation** using **Bash** to verify the target project compiles BEFORE generating tests.
+3. **If compilation FAILS**: categorize errors, report diagnosis with fix suggestions. **DO NOT proceed** with test generation.
+4. **If compilation SUCCEEDS**: log confirmation and continue to Step 2.
+
 ### Step 2: EDD — Define Evaluation Criteria
 
 **Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
@@ -122,8 +131,8 @@ For large systems with many API endpoints, writing API tests sequentially is tim
    - **Ensure independence**: Partitions should cover disjoint resource paths. If one endpoint depends on data created by another endpoint's partition, either merge partitions or note the dependency for sequential data setup.
    - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
      - Assigned API endpoints or spec scenarios
-     - Language, framework (from Steps 1.3, 1.4)
-     - Test directory (from Step 1.5)
+     - Language, framework (from Step 1.2 and Step 1.3)
+     - Test directory (from Step 1.4)
      - Evaluation criteria (from Step 2)
      - Pyramid dedup results — scenarios to skip (from Step 3)
      - Test data strategy (from Step 4)
@@ -211,7 +220,32 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated API test 
 4. Add a base URL configuration that can be overridden by environment variables.
 5. Include spec reference header comment.
 
-### Step 9: Report Summary
+### Step 9: Verify Test Compilation & Execution
+
+#### 9-A: Verify Test Compilation
+
+**Read `_shared/compilation-verification.md` Phase 1** and follow its workflow:
+
+1. **Run the test compilation command** for the language and framework.
+2. **If test compilation FAILS**: categorize, auto-fix (up to 3 retries), or report unfixable errors.
+3. **Note for API tests**: May depend on HTTP client libraries (REST Assured, Supertest, httpx) and schema validators. Ensure they are added to test dependencies.
+
+#### 9-B: Verify Test Execution
+
+**Read `_shared/test-execution-verification.md`** and follow its workflow:
+
+1. **Check API-specific prerequisites**:
+   - Application entry point identified and startable.
+   - Port configuration known (or use random port for testing).
+   - Auth credentials/test tokens available for protected endpoints.
+2. **For in-process API tests** (Supertest, Spring MockMvc, pytest TestClient): start the app in test mode and verify it boots.
+3. **For out-of-process API tests** (REST Assured, httpx): verify the app can start on a test port.
+4. **Run a dry-run smoke test** — GET a known endpoint or health check.
+5. **If runtime error**: diagnose (app fails to start? port in use? auth config missing?) and report fix.
+6. **Run all generated API tests** and categorize results.
+7. **Report execution summary**.
+
+### Step 10: Report Summary
 
 **Read `_shared/report-template.md`** and generate using the API-specific sections:
 - Summary table with pyramid skip count

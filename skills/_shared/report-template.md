@@ -32,6 +32,44 @@ The caller must provide a summary object with the fields described below. The re
 
 ---
 
+### Compilation Verification
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Source compilation (pre-generation) | ✅ Passed / ❌ Failed | <build command and result> |
+| Test compilation (post-generation) | ✅ Passed / ⚠ Passed with auto-fixes / ❌ Failed | <auto-fixes applied or failure reason> |
+
+**Auto-fixes applied:** (if any)
+- <list of fixes: imports added, dependencies added, directories corrected>
+
+**Compilation issues requiring manual intervention:** (if any)
+- <error> → **Suggested fix:** <actionable suggestion>
+
+---
+
+### Test Execution Verification
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| ✅ Passed | <N> | Tests ran and assertions passed |
+| ❌ Failed (assertion) | <N> | Tests ran but assertions failed — target code may have bugs, or test expectations need review |
+| 💥 Runtime Error | <N> | Tests could not execute — configuration or environment issue |
+| ⏭️ Skipped | <N> | Not run (depends on failed prerequisite) |
+
+**Dry-run smoke test:** ✅ Passed / ❌ Failed — <command and result>
+
+**Runtime errors requiring attention:** (if any)
+- <error message>
+  - **Likely cause:** <diagnosis>
+  - **Suggested fix:** <actionable steps>
+
+**Assertion failures (for review):**
+| Test | Failure Message | Possible Cause |
+|------|----------------|----------------|
+| <test name> | <message> | <bug in target code or wrong expectation> |
+
+---
+
 ### Coverage Configuration
 
 | Item | Value |
@@ -110,10 +148,14 @@ The caller must provide a summary object with the fields described below. The re
 
 ### Next Steps
 
-1. Run tests: `<command>`
-2. Run with coverage: `<coverageCommand>`
-3. Review spec at: `specs/<feature>/spec.v<N>.md` (if spec system enabled)
-4. Address uncovered endpoints / scenarios listed in the coverage matrix
+1. **Fix compilation issues** (if any): Review the Compilation Verification section above and apply suggested fixes.
+2. **Fix runtime errors** (if any): Review the Test Execution Verification section and apply suggested fixes.
+3. **Review assertion failures**: Determine if they indicate bugs in the target code or incorrect test expectations. Fix accordingly.
+4. Run tests: `<command>`
+5. Run with coverage: `<coverageCommand>`
+6. Fix failing tests (iterate with the appropriate khufu skill)
+7. Review spec at: `specs/<feature>/spec.v<N>.md` (if spec system enabled)
+8. Address uncovered endpoints / scenarios listed in the coverage matrix
 ```
 
 ## Layer-Specific Note

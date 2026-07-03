@@ -38,6 +38,19 @@ Read the following shared modules to configure the test generation environment:
 3. **Read `_shared/framework-selector.md`** with `layer: it` — selects the integration test framework. Note the H2 vs Testcontainers options for Java (see Step 4 for details).
 4. **Read `_shared/directory-resolver.md`** with `layer: it` — determines the output directory for integration test files.
 
+### Step 1.5: Verify Source Compilation (Pre-Generation)
+
+**Read `_shared/compilation-verification.md` Phase 0** and follow its workflow:
+
+1. **Determine the build command** for the detected language and build system.
+2. **Run source compilation** using **Bash** to verify the target project compiles BEFORE generating tests.
+3. **If compilation FAILS**:
+   - Categorize the errors (missing dependencies, build config, source code errors, missing tools).
+   - **Report the diagnosis to the user** with specific, actionable fix suggestions.
+   - **DO NOT proceed** with test generation.
+   - Exit gracefully after providing the diagnosis and fix suggestions.
+4. **If compilation SUCCEEDS**: log confirmation and continue to Step 2.
+
 ### Step 2: EDD — Define Evaluation Criteria
 
 **Read `_shared/evaluation-framework.md`** and follow its EDD workflow:
@@ -138,8 +151,8 @@ For large or complex systems, writing integration tests sequentially is time-con
    - **Ensure independence**: Partitions must not share database tables that would conflict during parallel test execution. If two modules write to the same table, merge their partitions or assign unique data prefixes.
    - **Launch parallel sub-agents** in a single message (all concurrent), each receiving a self-contained prompt with:
      - Assigned vertical slices or spec scenarios
-     - Language, framework, and mocking library (from Steps 1.3, 1.4)
-     - Test directory (from Step 1.5)
+     - Language, framework, and mocking library (from Step 1.2 and Step 1.3)
+     - Test directory (from Step 1.4)
      - Evaluation criteria (from Step 2)
      - Pyramid dedup results — scenarios to skip (from Step 3)
      - Database strategy — H2 or Testcontainers (from Step 4)
@@ -265,7 +278,30 @@ def test_create_and_get_user(client, postgres):
 
 Same process as UT — see `_shared/evaluation-framework.md`. Mark generated IT test cases in the spec file with `status: implemented`.
 
-### Step 10: Report Summary
+### Step 10: Verify Test Compilation & Execution
+
+#### 10-A: Verify Test Compilation
+
+**Read `_shared/compilation-verification.md` Phase 1** and follow its workflow:
+
+1. **Run the test compilation command** for the language and framework.
+2. **If test compilation FAILS**: categorize, auto-fix (up to 3 retries), or report unfixable errors.
+3. **Note for IT**: Integration tests may need additional build configuration (test source sets, H2 dependency, Testcontainers dependency). If compilation fails due to missing IT-specific deps, add them to the build file automatically and recompile.
+
+#### 10-B: Verify Test Execution
+
+**Read `_shared/test-execution-verification.md`** and follow its workflow:
+
+1. **Check IT-specific prerequisites**:
+   - Database connectivity (or suggest H2 embedded for fast CI).
+   - Docker daemon (if using Testcontainers — `docker --version`).
+   - Migration/DDL scripts present and runnable.
+2. **Run a dry-run smoke test** — a single simple persistence test.
+3. **If runtime error**: diagnose (DB connection? Docker not running? migration not applied?) and report fix.
+4. **Run all generated IT tests** and categorize results (passed / failed assertion / runtime error).
+5. **Report execution summary** with distinction between assertion failures (acceptable) and runtime errors (blocking).
+
+### Step 11: Report Summary
 
 **Read `_shared/report-template.md`** and generate a report using the IT-specific sections:
 - Summary table with skipped-by-pyramid count
