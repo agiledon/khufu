@@ -1,6 +1,6 @@
 {
   "name": "khufu-kit",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Test generation skill framework for AI IDEs, following the test pyramid methodology. Provides /khufu-ut, /khufu-it, /khufu-api, and /khufu-e2e skills.",
   "type": "module",
   "bin": {

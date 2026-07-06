@@ -2,7 +2,7 @@
 name: khufu-e2e
 description: >-
   This skill should be used when the user wants to generate end-to-end tests, asks for "E2E tests", mentions "端到端测试", "khufu-e2e", "browser tests", "UI tests", or wants to test complete user journeys through the entire system. Supports spec-based generation (with @path to user story or workflow documents) and code-based generation (from existing application routes and pages). E2E tests are the tip of the test pyramid — fewest in number, slowest, but cover the most critical business flows.
-version: 0.2.0
+version: 0.2.1
 allowed-tools:
   - Read
   - Write

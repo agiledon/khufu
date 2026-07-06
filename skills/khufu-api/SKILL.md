@@ -2,7 +2,7 @@
 name: khufu-api
 description: >-
   This skill should be used when the user wants to generate API tests, asks for "API tests", mentions "API测试", "khufu-api", "REST tests", "contract tests", or wants to test HTTP/REST/gRPC endpoints. Supports spec-based generation (with @path to OpenAPI/Swagger spec or API documentation) and code-based generation (from existing route definitions and handlers). API tests verify the application from the network boundary — status codes, response bodies, headers, and error formats.
-version: 0.2.0
+version: 0.2.1
 allowed-tools:
   - Read
   - Write

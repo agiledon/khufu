@@ -2,7 +2,7 @@
 name: khufu-it
 description: >-
   This skill should be used when the user wants to generate integration tests, asks for "integration tests", mentions "集成测试", "khufu-it", or wants to test how multiple components work together. Supports spec-based generation (with @path to spec documents) and code-based generation (from existing implementations). Integration tests verify multiple real components interacting together, such as service + database or controller + service + repository.
-version: 0.2.0
+version: 0.2.1
 allowed-tools:
   - Read
   - Write

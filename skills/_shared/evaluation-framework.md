@@ -113,7 +113,7 @@ At the bottom of every spec file, include an Evaluation Summary:
 | Public method coverage | 100% | 100% (5/5) | ✅ | — |
 
 **Evaluation Date:** 2026-06-25
-**Evaluated By:** khufu-ut v0.2.0
+**Evaluated By:** khufu-ut v0.2.1
 
 **Open Issues:**
 - [ ] Branch coverage gap: `createUser()` — null email path not tested (est. +1 test)
