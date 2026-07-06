@@ -17,6 +17,7 @@ describe('ConfigLoader — Unit Tests', () => {
   beforeEach(async () => {
     tmpDir = path.join(os.tmpdir(), `khufu-ut-config-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await fs.ensureDir(tmpDir);
+    await fs.ensureDir(path.join(tmpDir, '.khufu'));
   });
 
   afterEach(async () => {
@@ -40,12 +41,12 @@ frameworks:
   e2e: playwright
 scope: project
 `;
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), yamlContent, 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), yamlContent, 'utf-8');
 
       const { loadConfig } = await import('../src/config/config-loader.js');
       const config = await loadConfig(tmpDir);
       expect(config).not.toBeNull();
-      expect(config!.ide).toBe('claude');
+      expect(config!.ide).toEqual(['claude']);
       expect(config!.language).toBe('typescript');
       expect(config!.frameworks.ut).toBe('jest');
       expect(config!.scope).toBe('project');
@@ -62,7 +63,7 @@ coverage:
       branch: 70
 scope: project
 `;
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), yamlContent, 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), yamlContent, 'utf-8');
 
       const { loadConfig } = await import('../src/config/config-loader.js');
       const config = await loadConfig(tmpDir);
@@ -72,7 +73,7 @@ scope: project
     });
 
     it('should return null for invalid YAML', async () => {
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), '{{{ invalid: yaml: [[', 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), '{{{ invalid: yaml: [[', 'utf-8');
 
       const { loadConfig } = await import('../src/config/config-loader.js');
       const config = await loadConfig(tmpDir);
@@ -94,7 +95,7 @@ directories:
   e2e: e2e/
 scope: project
 `;
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), yamlContent, 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), yamlContent, 'utf-8');
 
       const { loadConfig } = await import('../src/config/config-loader.js');
       const config = await loadConfig(tmpDir);
@@ -109,7 +110,7 @@ scope: project
     it('should save config to khufu.yaml', async () => {
       const { saveConfig } = await import('../src/config/config-loader.js');
       const config = {
-        ide: 'claude',
+        ide: ['claude'],
         language: 'python',
         frameworks: { ut: 'pytest' },
         directories: { ut: 'tests/' },
@@ -119,22 +120,22 @@ scope: project
 
       await saveConfig(tmpDir, config);
 
-      const configPath = path.join(tmpDir, 'khufu.yaml');
+      const configPath = path.join(tmpDir, '.khufu', 'khufu.yaml');
       expect(await fs.pathExists(configPath)).toBe(true);
 
       const content = await fs.readFile(configPath, 'utf-8');
-      expect(content).toContain('ide: claude');
+      expect(content).toContain('- claude');
       expect(content).toContain('python');
       expect(content).toContain('pytest');
     });
 
     it('should overwrite existing khufu.yaml', async () => {
-      const configPath = path.join(tmpDir, 'khufu.yaml');
+      const configPath = path.join(tmpDir, '.khufu', 'khufu.yaml');
       await fs.writeFile(configPath, 'ide: old-ide\nscope: project\n', 'utf-8');
 
       const { saveConfig } = await import('../src/config/config-loader.js');
       const config = {
-        ide: 'claude',
+        ide: ['claude'],
         frameworks: {},
         directories: {},
         coverage: {},
@@ -144,14 +145,14 @@ scope: project
       await saveConfig(tmpDir, config);
 
       const content = await fs.readFile(configPath, 'utf-8');
-      expect(content).toContain('ide: claude');
+      expect(content).toContain('- claude');
       expect(content).not.toContain('old-ide');
     });
 
     it('should save and load back consistently', async () => {
       const { saveConfig, loadConfig } = await import('../src/config/config-loader.js');
       const originalConfig = {
-        ide: 'claude',
+        ide: ['claude'],
         language: 'typescript',
         frameworks: { ut: 'vitest', it: 'vitest', api: 'supertest', e2e: 'playwright' },
         directories: { ut: '__tests__/', it: '__tests__/integration/' },
@@ -169,7 +170,7 @@ scope: project
       const loaded = await loadConfig(tmpDir);
 
       expect(loaded).not.toBeNull();
-      expect(loaded!.ide).toBe(originalConfig.ide);
+      expect(loaded!.ide).toEqual(originalConfig.ide);
       expect(loaded!.language).toBe(originalConfig.language);
       expect(loaded!.frameworks.ut).toBe(originalConfig.frameworks.ut);
       expect(loaded!.scope).toBe(originalConfig.scope);

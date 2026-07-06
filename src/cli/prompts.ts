@@ -2,22 +2,31 @@ import inquirer from 'inquirer';
 import type { ToolDefinition, InstallScope } from '../registry/types.js';
 
 /**
- * Prompt the user to select a target IDE.
+ * Prompt the user to select one or more target IDEs (multi-select).
+ * Use space to toggle, arrow keys to navigate, enter to confirm.
  */
-export async function promptIDE(availableTools: ToolDefinition[]): Promise<ToolDefinition> {
-  const { toolId } = await inquirer.prompt<{ toolId: string }>([
+export async function promptIDE(availableTools: ToolDefinition[]): Promise<ToolDefinition[]> {
+  const { toolIds } = await inquirer.prompt<{ toolIds: string[] }>([
     {
-      type: 'list',
-      name: 'toolId',
-      message: 'Select AI IDE:',
+      type: 'checkbox',
+      name: 'toolIds',
+      message: 'Select your Agentic Coding Tools (space to toggle, enter to confirm):',
       choices: availableTools.map((tool) => ({
-        name: tool.name,
+        name: `${tool.name}${tool.id === 'claude' ? ' (recommended)' : ''}`,
         value: tool.id,
+        checked: tool.id === 'claude',
       })),
+      pageSize: 10,
+      validate: (answer: string[]) => {
+        if (answer.length === 0) {
+          return 'You must select at least one tool.';
+        }
+        return true;
+      },
     },
   ]);
 
-  const selected = availableTools.find((t) => t.id === toolId)!;
+  const selected = availableTools.filter((t) => toolIds.includes(t.id));
   return selected;
 }
 
@@ -97,6 +106,24 @@ export async function promptExistingInstall(): Promise<'overwrite' | 'skip' | 'u
         { name: 'Overwrite (reinstall all skills)', value: 'overwrite' },
         { name: 'Skip (keep existing installation)', value: 'skip' },
         { name: 'Update (install missing skills only)', value: 'update' },
+      ],
+    },
+  ]);
+  return action;
+}
+
+/**
+ * Prompt for handling existing khufu configuration.
+ */
+export async function promptExistingConfig(configPath: string): Promise<'ignore' | 'overwrite'> {
+  const { action } = await inquirer.prompt<{ action: 'ignore' | 'overwrite' }>([
+    {
+      type: 'list',
+      name: 'action',
+      message: `Configuration already exists at ${configPath}. What would you like to do?`,
+      choices: [
+        { name: 'Ignore (keep existing configuration)', value: 'ignore' },
+        { name: 'Overwrite (replace with new configuration)', value: 'overwrite' },
       ],
     },
   ]);

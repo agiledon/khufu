@@ -1,6 +1,9 @@
 import type { ToolDefinition } from './types.js';
 import type { ToolRegistry as IToolRegistry } from './types.js';
 import { claudeTool } from './tools/claude.js';
+import { cursorTool } from './tools/cursor.js';
+import { opencodeTool } from './tools/opencode.js';
+import { codexTool } from './tools/codex.js';
 
 export class DefaultToolRegistry implements IToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
@@ -8,7 +11,9 @@ export class DefaultToolRegistry implements IToolRegistry {
   constructor() {
     // Register built-in tools
     this.register(claudeTool);
-    // Future: register(cursorTool), register(codexTool), etc.
+    this.register(cursorTool);
+    this.register(opencodeTool);
+    this.register(codexTool);
   }
 
   list(): ToolDefinition[] {

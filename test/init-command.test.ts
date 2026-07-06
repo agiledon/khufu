@@ -33,6 +33,7 @@ describe('Init Command — Integration Tests', () => {
   beforeEach(async () => {
     tmpDir = path.join(os.tmpdir(), `khufu-it-init-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await fs.ensureDir(tmpDir);
+    await fs.ensureDir(path.join(tmpDir, '.khufu'));
     process.chdir(tmpDir);
   });
 
@@ -49,7 +50,7 @@ describe('Init Command — Integration Tests', () => {
       await initCommand({ yes: true, force: false });
 
       // Verify scaffold result
-      expect(await fs.pathExists(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
       expect(await fs.pathExists(path.join(tmpDir, '.khufu'))).toBe(true);
       expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'installed-skills.json'))).toBe(true);
     });
@@ -59,8 +60,8 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(content).toContain('ide: claude');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- claude');
       expect(content).toContain('scope: project');
       // language detection: this dir may have some files that trigger detection
       // or it falls back to the default
@@ -89,7 +90,7 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('python');
     });
 
@@ -101,7 +102,7 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('typescript');
     });
 
@@ -110,8 +111,35 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ ide: 'claude', yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(content).toContain('ide: claude');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- claude');
+    });
+
+    it('should support cursor IDE via --ide', async () => {
+      const { initCommand } = await import('../src/cli/commands/init.js');
+
+      await initCommand({ ide: 'cursor', yes: true, force: false });
+
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- cursor');
+    });
+
+    it('should support opencode IDE via --ide', async () => {
+      const { initCommand } = await import('../src/cli/commands/init.js');
+
+      await initCommand({ ide: 'opencode', yes: true, force: false });
+
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- opencode');
+    });
+
+    it('should support codex IDE via --ide', async () => {
+      const { initCommand } = await import('../src/cli/commands/init.js');
+
+      await initCommand({ ide: 'codex', yes: true, force: false });
+
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- codex');
     });
 
     it('should handle global scope', async () => {
@@ -119,7 +147,7 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ global: true, yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: global');
     });
 
@@ -128,7 +156,7 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ scope: 'project', yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: project');
     });
 
@@ -139,19 +167,19 @@ describe('Init Command — Integration Tests', () => {
 
       await initCommand({ yes: true, force: false });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('go');
     });
 
     it('should overwrite existing khufu.yaml with --force', async () => {
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), 'ide: old-ide\nscope: project\n', 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'ide: old-ide\nscope: project\n', 'utf-8');
 
       const { initCommand } = await import('../src/cli/commands/init.js');
 
       await initCommand({ yes: true, force: true });
 
-      const content = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(content).toContain('ide: claude');
+      const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- claude');
       expect(content).not.toContain('old-ide');
     });
 
@@ -162,7 +190,7 @@ describe('Init Command — Integration Tests', () => {
       // In auto mode, falls back to 'java'
       await initCommand({ yes: true, force: false });
 
-      expect(await fs.pathExists(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
     });
   });
 

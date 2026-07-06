@@ -15,17 +15,17 @@ export interface ScaffoldResult {
 /**
  * Create the khufu project structure.
  * - Creates .khufu/ directory for internal state
- * - Creates khufu.yaml with project configuration
+ * - Creates .khufu/khufu.yaml with project configuration
  */
 export async function scaffoldProject(
   cwd: string,
-  ide: string,
+  ide: string[],
   scope: InstallScope,
   language?: string,
   force: boolean = false,
 ): Promise<ScaffoldResult> {
   const khufuDir = path.join(cwd, KHUFU_DIR);
-  const configPath = path.join(cwd, 'khufu.yaml');
+  const configPath = path.join(khufuDir, 'khufu.yaml');
 
   // Check for existing configuration
   if (!force) {
@@ -39,7 +39,7 @@ export async function scaffoldProject(
   // Create .khufu/ directory
   await fs.ensureDir(khufuDir);
 
-  // Create khufu.yaml
+  // Create .khufu/khufu.yaml
   const config = getDefaultConfig(ide, language);
   config.scope = scope;
   await saveConfig(cwd, config);

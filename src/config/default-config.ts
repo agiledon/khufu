@@ -1,6 +1,6 @@
 import type { KhufuConfig } from '../registry/types.js';
 
-export function getDefaultConfig(ide: string, language?: string): KhufuConfig {
+export function getDefaultConfig(ide: string[], language?: string): KhufuConfig {
   const config: KhufuConfig = {
     ide,
     language,

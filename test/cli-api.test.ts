@@ -117,7 +117,7 @@ describe('API Tests — CLI Program Structure', () => {
 
   describe('Config API', () => {
     it('getDefaultConfig returns KhufuConfig shape', () => {
-      const config = getDefaultConfig('claude', 'java');
+      const config = getDefaultConfig(['claude'], 'java');
 
       // Verify KhufuConfig interface
       expect(config.ide).toBeDefined();
@@ -129,7 +129,7 @@ describe('API Tests — CLI Program Structure', () => {
 
     it('all supported pyramid levels are in config shape', () => {
       const levels: PyramidLevel[] = ['ut', 'it', 'api', 'e2e'];
-      const config = getDefaultConfig('claude', 'typescript');
+      const config = getDefaultConfig(['claude'], 'typescript');
 
       for (const level of levels) {
         expect(config.frameworks).toHaveProperty(level);
@@ -138,15 +138,15 @@ describe('API Tests — CLI Program Structure', () => {
     });
 
     it('unknown language returns empty defaults', () => {
-      const config = getDefaultConfig('claude', 'unknownlang');
+      const config = getDefaultConfig(['claude'], 'unknownlang');
       expect(config.frameworks.ut).toBeUndefined();
       expect(config.directories.ut).toBeUndefined();
     });
 
     it('config shape matches KhufuConfig type (static check)', () => {
-      const config: KhufuConfig = getDefaultConfig('claude', 'python');
+      const config: KhufuConfig = getDefaultConfig(['claude'], 'python');
       // If this compiles, the shape is correct
-      expect(config.ide).toBe('claude');
+      expect(config.ide).toEqual(['claude']);
       expect(config.scope).toBe('project');
     });
   });

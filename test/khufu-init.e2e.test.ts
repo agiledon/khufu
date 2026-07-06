@@ -80,6 +80,7 @@ describe('khufu CLI — E2E Tests', () => {
   beforeEach(async () => {
     tmpDir = path.join(os.tmpdir(), `khufu-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await fs.ensureDir(tmpDir);
+    await fs.ensureDir(path.join(tmpDir, '.khufu'));
   });
 
   afterEach(async () => {
@@ -127,15 +128,15 @@ describe('khufu CLI — E2E Tests', () => {
       expect(output).toContain('Khufu');
 
       // Verify files were created
-      expect(fs.pathExistsSync(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
       expect(fs.pathExistsSync(path.join(tmpDir, '.khufu'))).toBe(true);
     });
 
     it('should create valid khufu.yaml', () => {
       runKhufu(['init', '--yes'], tmpDir);
 
-      const configContent = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(configContent).toContain('ide: claude');
+      const configContent = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(configContent).toContain('- claude');
       expect(configContent).toContain('scope:');
     });
 
@@ -143,21 +144,21 @@ describe('khufu CLI — E2E Tests', () => {
       runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       // Should succeed (not error out)
-      expect(fs.pathExistsSync(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
     });
 
     it('should handle --global flag', () => {
       runKhufu(['init', '--global', '--yes'], tmpDir);
 
-      expect(fs.pathExistsSync(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
-      const content = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
+      const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: global');
     });
 
     it('should handle --scope project flag', () => {
       runKhufu(['init', '--scope', 'project', '--yes'], tmpDir);
 
-      const content = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: project');
     });
 
@@ -177,7 +178,7 @@ describe('khufu CLI — E2E Tests', () => {
 
       runKhufu(['init', '--yes'], tmpDir);
 
-      const content = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('python');
     });
 
@@ -187,7 +188,7 @@ describe('khufu CLI — E2E Tests', () => {
 
       runKhufu(['init', '--yes'], tmpDir);
 
-      const content = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
+      const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('typescript');
     });
 
@@ -238,21 +239,21 @@ describe('khufu CLI — E2E Tests', () => {
       const result = runKhufu(['init', '--yes'], tmpDir);
 
       // Config should still exist
-      expect(fs.pathExistsSync(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
       // Should not crash — status indicates completion
       expect(result.status === 0 || result.status === 1 || result.status === null).toBe(true);
     });
 
     it('init --force should overwrite existing config', () => {
       // Create existing config
-      fs.writeFileSync(path.join(tmpDir, 'khufu.yaml'), 'ide: old\nscope: project\n', 'utf-8');
+      fs.writeFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'ide: old\nscope: project\n', 'utf-8');
 
       // Force reinit
       runKhufu(['init', '--yes', '--force'], tmpDir);
 
-      const content = fs.readFileSync(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(content).toContain('ide: claude');
-      expect(content).not.toContain('ide: old');
+      const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(content).toContain('- claude');
+      expect(content).not.toMatch(/^ide:\s*old/m);
     });
   });
 });

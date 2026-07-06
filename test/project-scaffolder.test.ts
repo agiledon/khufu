@@ -17,6 +17,7 @@ describe('ProjectScaffolder — Unit Tests', () => {
   beforeEach(async () => {
     tmpDir = path.join(os.tmpdir(), `khufu-ut-scaffold-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await fs.ensureDir(tmpDir);
+    await fs.ensureDir(path.join(tmpDir, '.khufu'));
   });
 
   afterEach(async () => {
@@ -27,15 +28,15 @@ describe('ProjectScaffolder — Unit Tests', () => {
     it('should create .khufu/ directory and khufu.yaml', async () => {
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      const result = await scaffoldProject(tmpDir, 'claude', 'project', 'typescript');
+      const result = await scaffoldProject(tmpDir, ['claude'], 'project', 'typescript');
 
       expect(result.config).toBeDefined();
-      expect(result.config.ide).toBe('claude');
+      expect(result.config.ide).toEqual(['claude']);
       expect(result.config.scope).toBe('project');
       expect(result.khufuDir).toBe(path.join(tmpDir, '.khufu'));
 
       // Verify files exist
-      expect(await fs.pathExists(path.join(tmpDir, 'khufu.yaml'))).toBe(true);
+      expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
       expect(await fs.pathExists(path.join(tmpDir, '.khufu'))).toBe(true);
       expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'installed-skills.json'))).toBe(true);
     });
@@ -43,10 +44,10 @@ describe('ProjectScaffolder — Unit Tests', () => {
     it('should create proper khufu.yaml content', async () => {
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      await scaffoldProject(tmpDir, 'claude', 'project', 'python');
+      await scaffoldProject(tmpDir, ['claude'], 'project', 'python');
 
-      const configContent = await fs.readFile(path.join(tmpDir, 'khufu.yaml'), 'utf-8');
-      expect(configContent).toContain('ide: claude');
+      const configContent = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
+      expect(configContent).toContain('- claude');
       expect(configContent).toContain('python');
       expect(configContent).toContain('scope: project');
     });
@@ -54,7 +55,7 @@ describe('ProjectScaffolder — Unit Tests', () => {
     it('should create installed-skills.json with initial state', async () => {
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      const result = await scaffoldProject(tmpDir, 'claude', 'global', 'go');
+      const result = await scaffoldProject(tmpDir, ['claude'], 'global', 'go');
 
       const statePath = path.join(result.khufuDir, 'installed-skills.json');
       const state = await fs.readJson(statePath);
@@ -65,28 +66,28 @@ describe('ProjectScaffolder — Unit Tests', () => {
     });
 
     it('should throw if khufu.yaml already exists (no force)', async () => {
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), 'ide: old\n', 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'ide: old\n', 'utf-8');
 
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
       await expect(
-        scaffoldProject(tmpDir, 'claude', 'project'),
+        scaffoldProject(tmpDir, ['claude'], 'project'),
       ).rejects.toThrow(/already exists/);
     });
 
     it('should overwrite when force=true', async () => {
-      await fs.writeFile(path.join(tmpDir, 'khufu.yaml'), 'ide: old\n', 'utf-8');
+      await fs.writeFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'ide: old\n', 'utf-8');
 
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      const result = await scaffoldProject(tmpDir, 'claude', 'project', 'typescript', true);
-      expect(result.config.ide).toBe('claude');
+      const result = await scaffoldProject(tmpDir, ['claude'], 'project', 'typescript', true);
+      expect(result.config.ide).toEqual(['claude']);
     });
 
     it('should set language in config when provided', async () => {
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      const result = await scaffoldProject(tmpDir, 'claude', 'project', 'java');
+      const result = await scaffoldProject(tmpDir, ['claude'], 'project', 'java');
       expect(result.config.language).toBe('java');
       expect(result.config.frameworks.ut).toBe('junit5');
     });
@@ -94,7 +95,7 @@ describe('ProjectScaffolder — Unit Tests', () => {
     it('should set language to undefined when not provided', async () => {
       const { scaffoldProject } = await import('../src/scaffold/project-scaffolder.js');
 
-      const result = await scaffoldProject(tmpDir, 'claude', 'project');
+      const result = await scaffoldProject(tmpDir, ['claude'], 'project');
       expect(result.config.language).toBeUndefined();
     });
   });

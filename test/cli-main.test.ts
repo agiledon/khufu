@@ -31,9 +31,9 @@ describe('CLI Main — Unit Tests', () => {
       expect(desc).toContain('Test');
     });
 
-    it('should have a version', () => {
+    it('should have version "0.2.0"', () => {
       const program = createProgram();
-      expect(program.version()).toBeTruthy();
+      expect(program.version()).toBe('0.2.0');
     });
 
     it('should have "init" command registered', () => {

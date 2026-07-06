@@ -7,12 +7,12 @@ export function createProgram(): Command {
   program
     .name('khufu')
     .description('🔺 Test generation skill framework for AI IDEs')
-    .version('0.1.0');
+    .version('0.2.0');
 
   program
     .command('init')
-    .description('Initialize khufu in the current project')
-    .option('--ide <ide>', 'Target IDE (claude)')
+    .description('Initialize khufu in the current project — displays the welcome page')
+    .option('--ide <ides>', 'Target IDE(s), comma-separated (claude, cursor, opencode, codex)')
     .option('--global', 'Install globally instead of project-level')
     .option('--scope <scope>', 'Installation scope (project, global)')
     .option('--force', 'Force overwrite existing installation')

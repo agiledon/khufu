@@ -56,7 +56,8 @@ export interface CoverageConfig {
 
 /** Khufu project configuration (khufu.yaml) */
 export interface KhufuConfig {
-  ide: string;
+  /** Selected IDE IDs, e.g. ["claude", "cursor"] */
+  ide: string[];
   language?: string;
   frameworks: {
     ut?: string;

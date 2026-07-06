@@ -15,10 +15,14 @@ describe('ToolRegistry — Unit Tests', () => {
   });
 
   describe('list', () => {
-    it('should return built-in tools on creation', () => {
+    it('should return all built-in tools on creation', () => {
       const tools = registry.list();
-      expect(tools.length).toBeGreaterThanOrEqual(1);
-      expect(tools.map((t) => t.id)).toContain('claude');
+      expect(tools.length).toBeGreaterThanOrEqual(4);
+      const toolIds = tools.map((t) => t.id);
+      expect(toolIds).toContain('claude');
+      expect(toolIds).toContain('cursor');
+      expect(toolIds).toContain('opencode');
+      expect(toolIds).toContain('codex');
     });
 
     it('should return an array', () => {
@@ -45,19 +49,19 @@ describe('ToolRegistry — Unit Tests', () => {
 
   describe('register', () => {
     it('should register a new tool definition', () => {
-      const cursorTool: ToolDefinition = {
-        id: 'cursor',
-        name: 'Cursor IDE',
-        configDir: '.cursor',
-        skillsDir: '.cursor/skills',
+      const windsorfTool: ToolDefinition = {
+        id: 'windsurf',
+        name: 'Windsurf IDE',
+        configDir: '.windsurf',
+        skillsDir: '.windsurf/skills',
         skillSubdirPattern: true,
-        globalConfigDir: '~/.cursor',
-        globalSkillsDir: '~/.cursor/skills',
+        globalConfigDir: '~/.windsurf',
+        globalSkillsDir: '~/.windsurf/skills',
       };
 
-      registry.register(cursorTool);
-      expect(registry.get('cursor')).toEqual(cursorTool);
-      expect(registry.list().length).toBeGreaterThanOrEqual(2);
+      registry.register(windsorfTool);
+      expect(registry.get('windsurf')).toEqual(windsorfTool);
+      expect(registry.list().length).toBeGreaterThanOrEqual(5);
     });
 
     it('should register a tool without plugin manifest', () => {
@@ -116,6 +120,77 @@ describe('ToolRegistry — Unit Tests', () => {
     it('should have skillsDir under configDir', () => {
       const tool = registry.get('claude')!;
       expect(tool.skillsDir.startsWith(tool.configDir)).toBe(true);
+    });
+  });
+
+  describe('cursor tool definition', () => {
+    it('should be registered by default', () => {
+      const tool = registry.get('cursor')!;
+      expect(tool).toBeDefined();
+      expect(tool.id).toBe('cursor');
+      expect(tool.name).toBe('Cursor');
+    });
+
+    it('should have required fields', () => {
+      const tool = registry.get('cursor')!;
+      expect(tool.configDir).toBe('.cursor');
+      expect(tool.skillsDir).toBe('.cursor/commands');
+      expect(tool.globalConfigDir).toBe('~/.cursor');
+      expect(tool.globalSkillsDir).toBe('~/.cursor/commands');
+    });
+
+    it('should have subdirectory pattern enabled', () => {
+      const tool = registry.get('cursor')!;
+      expect(tool.skillSubdirPattern).toBe(true);
+    });
+
+    it('should not have plugin manifest path', () => {
+      const tool = registry.get('cursor')!;
+      expect(tool.pluginManifestPath).toBeUndefined();
+    });
+  });
+
+  describe('opencode tool definition', () => {
+    it('should be registered by default', () => {
+      const tool = registry.get('opencode')!;
+      expect(tool).toBeDefined();
+      expect(tool.id).toBe('opencode');
+      expect(tool.name).toBe('OpenCode');
+    });
+
+    it('should have required fields', () => {
+      const tool = registry.get('opencode')!;
+      expect(tool.configDir).toBe('.opencode');
+      expect(tool.skillsDir).toBe('.opencode/commands');
+      expect(tool.globalConfigDir).toBe('~/.opencode');
+      expect(tool.globalSkillsDir).toBe('~/.opencode/commands');
+    });
+
+    it('should have subdirectory pattern enabled', () => {
+      const tool = registry.get('opencode')!;
+      expect(tool.skillSubdirPattern).toBe(true);
+    });
+  });
+
+  describe('codex tool definition', () => {
+    it('should be registered by default', () => {
+      const tool = registry.get('codex')!;
+      expect(tool).toBeDefined();
+      expect(tool.id).toBe('codex');
+      expect(tool.name).toBe('Codex (OpenAI)');
+    });
+
+    it('should have required fields', () => {
+      const tool = registry.get('codex')!;
+      expect(tool.configDir).toBe('.codex');
+      expect(tool.skillsDir).toBe('.codex/skills');
+      expect(tool.globalConfigDir).toBe('~/.codex');
+      expect(tool.globalSkillsDir).toBe('~/.codex/skills');
+    });
+
+    it('should have subdirectory pattern enabled', () => {
+      const tool = registry.get('codex')!;
+      expect(tool.skillSubdirPattern).toBe(true);
     });
   });
 
