@@ -54,6 +54,22 @@ export interface CoverageConfig {
   excludes?: string[];
 }
 
+/** Spec (SDD) configuration */
+export interface SpecConfig {
+  /** Whether the spec system is enabled */
+  enabled?: boolean;
+  /** Planning spec directory (feature-centric), default "specs/" */
+  directory?: string;
+  /** Spec file format */
+  format?: 'markdown';
+  /** Spec versioning strategy */
+  versioning?: 'file-based';
+  /** Auto-generate specs from tests in code-based mode */
+  autoGenerateFromTests?: boolean;
+  /** Execution record spec directory (date-centric), default "docs/khufu/" */
+  docsDirectory?: string;
+}
+
 /** Khufu project configuration (khufu.yaml) */
 export interface KhufuConfig {
   /** Selected IDE IDs, e.g. ["claude", "cursor"] */
@@ -77,6 +93,8 @@ export interface KhufuConfig {
     api?: CoverageConfig;
     e2e?: CoverageConfig;
   };
+  /** Spec-driven development configuration */
+  spec?: SpecConfig;
   scope: InstallScope;
 }
 

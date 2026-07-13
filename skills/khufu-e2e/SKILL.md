@@ -62,6 +62,18 @@ Read the following shared modules to configure the test generation environment:
 
 ### Step 3: Dedup Checks
 
+#### 3.0 Spec Doc Scan (Pre-Generation Dedup — Execution Records)
+
+**Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
+
+1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
+2. Parse all referenced E2E spec docs (e.g., `e2e/2026-07-*.md`)
+3. Extract already-covered user journeys (Target Class + Target Method) from the Test Cases table (filter to rows with Status ✅)
+4. Build a skip list of user journeys that already have passing E2E tests
+5. Hold this skip list for merging with spec-sync results in Step 3.2
+
+**If spec system is disabled or the wizard file doesn't exist**: Skip this step.
+
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating E2E tests:
@@ -256,7 +268,27 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated E2E test 
 5. **Run all generated E2E tests** and categorize results.
 6. **Report execution summary** with emphasis on which user journeys are covered.
 
-### Step 12: Report Summary
+### Step 12: Generate Spec Documentation (SDD)
+
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+
+1. **Collect data** from Steps 10 (test execution) and 11 (scenario coverage):
+   - Test execution results: which tests passed/failed/skipped
+   - Scenario coverage matrix: user journey, priority, status
+   - Framework info: Playwright version (or Qt Test version for Qt projects)
+   - Test case details: for each generated test — Test File, Test Scenario (User Journey), Target Pages, Status
+
+2. **Determine the spec doc path**:
+   - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
+   - Path: `docs/khufu/e2e/<YYYY-MM-DD>-e2e-test-cases.md`
+
+3. **Check for existing spec doc** and merge if needed.
+
+4. **Write the spec doc** using the template (for E2E tests, the Target Class/Target Method columns map to User Journey/Page Flow).
+
+5. **Update the wizard file** `docs/khufu/test-cases.md`.
+
+### Step 13: Report Summary
 
 **Read `_shared/report-template.md`** and generate using the E2E-specific sections:
 - Summary table with pyramid skip count

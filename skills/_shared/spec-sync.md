@@ -1,12 +1,29 @@
 # Spec Sync — Incremental Test Generation
 
-Shared module for preventing duplicate test generation on repeated skill executions. When a user runs `khufu-ut` (or any test layer skill) multiple times, previously generated tests should NOT be regenerated. This module checks existing spec files and existing test files to build a "skip list" before generation begins.
+Shared module for preventing duplicate test generation on repeated skill executions. When a user runs `khufu-ut` (or any test layer skill) multiple times, previously generated tests should NOT be regenerated. This module checks existing spec files (both planning specs in `specs/` and execution record specs in `docs/khufu/`) and existing test files to build a "skip list" before generation begins.
 
 ## Core Principle
 
 **Never overwrite a test that already exists and is tracked in a spec.** If the user wants to regenerate a test, they should delete the existing test file first.
 
+## Dual-Source Dedup
+
+khufu maintains two complementary spec systems:
+
+| System | Location | Purpose | Format |
+|--------|----------|---------|--------|
+| **Planning Specs** | `specs/` | Feature-centric — what tests SHOULD exist | `specs/<feature>/spec.v<N>.md` |
+| **Execution Record Specs** | `docs/khufu/` | Date-centric — what tests WERE generated | `docs/khufu/<layer>/<YYYY-MM-DD>-<layer>-test-cases.md` |
+
+Both systems are scanned for dedup. See `_shared/spec-doc-scanner.md` for the execution record scanning workflow.
+
 ## Workflow
+
+### Phase 0: Scan Execution Record Specs (NEW)
+
+**Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` for already-covered code. This runs BEFORE the existing spec-based and file-based checks.
+
+If spec-doc-scanner returns a skip list, hold it for merging in Phase 4.
 
 ### Phase 1: Check if Spec System is Enabled
 
@@ -101,9 +118,35 @@ When `spec.enabled: false` OR no spec files exist yet, use a simpler file-based 
 
 4. **Warn the user** if existing test files are found without corresponding spec entries. Recommend enabling the spec system for better tracking.
 
-### Phase 4: Feed Skip List Forward
+### Phase 4: Merge and Feed Skip List Forward
 
-The skip list is consumed by the generation step:
+#### 4.1 Merge Skip Lists
+
+Combine the skip lists from all sources:
+1. **Execution record specs** (Phase 0 — from `_shared/spec-doc-scanner.md`)
+2. **Planning specs** (Phase 2 — from spec files with `status: implemented`)
+3. **File-based fallback** (Phase 3 — from existing test files)
+
+Merge rules:
+- Combine all entries
+- Deduplicate by `targetClass + targetMethod` (keep the entry with the most recent source)
+- Priority order: execution record specs > planning specs > file-based fallback
+
+Produce a unified skip list:
+
+```markdown
+## Merged Skip List
+
+| Target Class | Target Method | Covered By | Source |
+|-------------|--------------|-----------|--------|
+| UserService | createUser | UserServiceTest.ShouldCreate... | docs/khufu/ut/ |
+| OrderService | calculateTotal | OrderServiceTest.ShouldCalc... | specs/order/spec.v1.md |
+| ProductRepo | findById | ProductRepoTest.shouldFind... | file-fallback |
+```
+
+#### 4.2 Feed Skip List Forward
+
+The merged skip list is consumed by the generation step:
 
 - **In parallel mode** (Step 4.1.1 / 5.0 / etc.): Each sub-agent receives the skip list for its assigned modules. The sub-agent must skip any source file or scenario in the list.
 - **In sequential mode**: The generation step (5.1 / 5.2) filters out skipped targets before reading source files.

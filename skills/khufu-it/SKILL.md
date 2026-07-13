@@ -66,6 +66,18 @@ Read the following shared modules to configure the test generation environment:
 
 ### Step 3: Dedup Checks
 
+#### 3.0 Spec Doc Scan (Pre-Generation Dedup — Execution Records)
+
+**Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
+
+1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
+2. Parse all referenced IT spec docs (e.g., `it/2026-07-*.md`)
+3. Extract already-covered Target Class + Target Method pairs from the Test Cases table (filter to rows with Status ✅)
+4. Build a skip list of vertical slices/components that already have passing integration tests
+5. Hold this skip list for merging with spec-sync results in Step 3.2
+
+**If spec system is disabled or the wizard file doesn't exist**: Skip this step.
+
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating IT tests:
@@ -301,7 +313,27 @@ Same process as UT — see `_shared/evaluation-framework.md`. Mark generated IT 
 4. **Run all generated IT tests** and categorize results (passed / failed assertion / runtime error).
 5. **Report execution summary** with distinction between assertion failures (acceptable) and runtime errors (blocking).
 
-### Step 11: Report Summary
+### Step 11: Generate Spec Documentation (SDD)
+
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+
+1. **Collect data** from Steps 9 (test execution) and 10 (coverage):
+   - Test execution results: which tests passed/failed/skipped
+   - Coverage data: overall and per-class line/branch coverage
+   - Framework info: Google Test version, gcov+lcov version
+   - Test case details: for each generated test — Test Class, Test Method, Target Vertical Slice, Status
+
+2. **Determine the spec doc path**:
+   - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
+   - Path: `docs/khufu/it/<YYYY-MM-DD>-it-test-cases.md`
+
+3. **Check for existing spec doc** and merge if needed.
+
+4. **Write the spec doc** using the template.
+
+5. **Update the wizard file** `docs/khufu/test-cases.md`.
+
+### Step 12: Report Summary
 
 **Read `_shared/report-template.md`** and generate a report using the IT-specific sections:
 - Summary table with skipped-by-pyramid count

@@ -62,6 +62,18 @@ Read the following shared modules to configure the test generation environment:
 
 ### Step 3: Dedup Checks
 
+#### 3.0 Spec Doc Scan (Pre-Generation Dedup — Execution Records)
+
+**Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
+
+1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
+2. Parse all referenced API spec docs (e.g., `api/2026-07-*.md`)
+3. Extract already-covered endpoints (Target Class + Target Method) from the Test Cases table (filter to rows with Status ✅)
+4. Build a skip list of API endpoints that already have passing tests
+5. Hold this skip list for merging with spec-sync results in Step 3.2
+
+**If spec system is disabled or the wizard file doesn't exist**: Skip this step.
+
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** Before generating API tests:
@@ -245,7 +257,27 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated API test 
 6. **Run all generated API tests** and categorize results.
 7. **Report execution summary**.
 
-### Step 10: Report Summary
+### Step 10: Generate Spec Documentation (SDD)
+
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+
+1. **Collect data** from Steps 8 (test execution) and 9 (endpoint coverage):
+   - Test execution results: which tests passed/failed/skipped
+   - Endpoint coverage matrix: method, path, status codes tested, schema validated
+   - Framework info: pytest + httpx version (or whichever API test framework was used)
+   - Test case details: for each generated test — Test Class, Test Method, Endpoint (Target), Status
+
+2. **Determine the spec doc path**:
+   - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
+   - Path: `docs/khufu/api/<YYYY-MM-DD>-api-test-cases.md`
+
+3. **Check for existing spec doc** and merge if needed.
+
+4. **Write the spec doc** using the template (for API tests, the Target Class/Target Method columns map to Endpoint Path/HTTP Method).
+
+5. **Update the wizard file** `docs/khufu/test-cases.md`.
+
+### Step 11: Report Summary
 
 **Read `_shared/report-template.md`** and generate using the API-specific sections:
 - Summary table with pyramid skip count

@@ -67,6 +67,18 @@ Read the following shared modules to configure the test generation environment:
 
 ### Step 3: Dedup Checks
 
+#### 3.0 Spec Doc Scan (Pre-Generation Dedup — Execution Records)
+
+**Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
+
+1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
+2. Parse all referenced UT spec docs (e.g., `ut/2026-07-*.md`)
+3. Extract already-covered Target Class + Target Method pairs from the Test Cases table (filter to rows with Status ✅)
+4. Build a skip list of source files/methods that already have passing tests
+5. Hold this skip list for merging with spec-sync results in Step 3.2
+
+**If spec system is disabled or the wizard file doesn't exist**: Skip this step — this is the first run, nothing to dedup.
+
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
 **Read `_shared/test-pyramid-strategy.md`.** As the base layer, UT has no lower layers to check against. However, note:
@@ -419,7 +431,31 @@ See the spec template in `_shared/evaluation-framework.md` for the format.
    - 💥 **Runtime Error** — test could not execute (NOT acceptable: needs fixing)
 6. **Report the execution summary**, clearly distinguishing assertion failures (test logic) from runtime errors (config/infra).
 
-### Step 11: Report Summary
+### Step 11: Generate Spec Documentation (SDD)
+
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+
+1. **Collect data** from Steps 9 (test execution) and 10 (coverage):
+   - Test execution results: which tests passed/failed/skipped
+   - Coverage data: overall and per-class line/branch/function coverage
+   - Framework info: Google Test version, gcov+lcov version
+   - Test case details: for each generated test — Test Class, Test Method, Target Class, Target Method, Status
+
+2. **Determine the spec doc path**:
+   - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
+   - Path: `docs/khufu/ut/<YYYY-MM-DD>-ut-test-cases.md`
+
+3. **Check for existing spec doc** (same date + same layer):
+   - If exists: Read → increment version → merge test cases → recalculate summary
+   - If not exists: Create with `version: 1`
+
+4. **Write the spec doc** using the template (Summary + Test Cases table + Coverage Statistics + Metadata).
+
+5. **Update the wizard file** `docs/khufu/test-cases.md`:
+   - If exists: Read → increment wizard version → update/insert row for today's UT generation → update Coverage Overview
+   - If not exists: Create with `version: 1`
+
+### Step 12: Report Summary
 
 **Read `_shared/report-template.md`** and generate a report using the UT-specific sections:
 - Summary table
