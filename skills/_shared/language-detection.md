@@ -36,6 +36,8 @@ Scan project root files to identify the language:
 | `package.json` (no tsconfig) | JavaScript |
 | `pyproject.toml` or `setup.py` or `setup.cfg` | Python |
 | `go.mod` | Go |
+| `xmake.lua` | C++ (xmake) |
+| `CMakeLists.txt` | C++ (CMake) |
 | `Cargo.toml` | Rust |
 | `*.csproj` or `*.sln` | C# |
 
@@ -56,6 +58,7 @@ Use **AskUserQuestion** to confirm:
 | Python | pip (`setup.py`), Poetry (`pyproject.toml`), uv (`pyproject.toml`) |
 | TypeScript/JS | npm, yarn, pnpm (check lock files) |
 | Go | Go modules (`go.mod`) |
+| C++ | xmake (`xmake.lua`), CMake (`CMakeLists.txt`) |
 | C# | .NET SDK (`*.csproj`, `*.sln`) |
 
 ### 5. Return

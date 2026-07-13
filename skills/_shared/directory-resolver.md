@@ -35,6 +35,7 @@ If no override in khufu.yaml, use these defaults:
 | Python | `tests/` or co-located `test_<module>.py` | `tests/integration/` | `tests/api/` | `tests/e2e/` |
 | TypeScript/JS | `__tests__/` or co-located `<file>.test.ts` | `__tests__/integration/` | `__tests__/api/` | `e2e/` or `tests/e2e/` |
 | Go | Same package `<source>_test.go` | `integration/` directory with `//go:build integration` tag | `api/` directory | `e2e/` directory |
+| C++ | `tests/ut/` or co-located `_test.cpp` | `tests/it/` | `tests/api/` | `tests/e2e/` |
 | C# | `<Project>.Tests/` | `<Project>.IntegrationTests/` | `<Project>.ApiTests/` | `<Project>.E2ETests/` |
 
 ### 3. Package/Module Path Resolution

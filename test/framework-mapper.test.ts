@@ -55,6 +55,18 @@ describe('FrameworkMapper', () => {
       expect(frameworks[0].name).toBe('Jest');
     });
 
+    it('should normalize cpp to c++', () => {
+      const frameworks = getFrameworks('cpp', 'ut');
+      expect(frameworks.length).toBeGreaterThan(0);
+      expect(frameworks[0].name).toBe('Google Test');
+    });
+
+    it('should normalize cplusplus to c++', () => {
+      const frameworks = getFrameworks('cplusplus', 'ut');
+      expect(frameworks.length).toBeGreaterThan(0);
+      expect(frameworks[0].name).toBe('Google Test');
+    });
+
     it('should prioritize primary recommendations', () => {
       const frameworks = getFrameworks('java', 'ut');
       const primaryFrameworks = frameworks.filter((f) => f.recommendation === 'primary');
@@ -83,7 +95,7 @@ describe('FrameworkMapper', () => {
   });
 
   describe('framework completeness', () => {
-    const supportedLanguages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#'];
+    const supportedLanguages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#', 'c++'];
 
     it('should have at least one framework per level for each supported language', () => {
       for (const lang of supportedLanguages) {
@@ -113,7 +125,7 @@ describe('FrameworkMapper', () => {
   });
 
   describe('CoverageTool', () => {
-    const supportedLanguages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#'];
+    const supportedLanguages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#', 'c++'];
 
     it('should return a coverage tool for each supported language', () => {
       for (const lang of supportedLanguages) {
@@ -145,6 +157,16 @@ describe('FrameworkMapper', () => {
     it('should normalize ts/typescript for coverage tools', () => {
       expect(getCoverageTool('ts')).toBeDefined();
       expect(getCoverageTool('ts')!.name).toContain('Istanbul');
+    });
+
+    it('should return coverage tool for c++', () => {
+      expect(getCoverageTool('c++')).toBeDefined();
+      expect(getCoverageTool('c++')!.name).toBe('gcov + lcov');
+    });
+
+    it('should normalize cpp for coverage tools', () => {
+      expect(getCoverageTool('cpp')).toBeDefined();
+      expect(getCoverageTool('cpp')!.name).toBe('gcov + lcov');
     });
 
     it('COVERAGE_TOOL_MAP should export all expected languages', () => {

@@ -39,6 +39,8 @@ Based on the detected language and build system:
 | JavaScript | npm | `node -c <files>` | `node -c <files>` |
 | Go | go modules | `go build ./...` | `go vet ./...` |
 | C# | .NET SDK | `dotnet build` | `dotnet build` (tests are separate project) |
+| C++ | xmake | `xmake build` | `xmake build --all` |
+| C++ | CMake | `cmake --build build` | `cmake --build build` |
 | Rust | Cargo | `cargo check` | `cargo test --no-run` |
 
 ### Step 0.2: Run Compilation
@@ -167,6 +169,8 @@ Run the test-specific compilation command for the language:
 | Python | `python -m py_compile <test-file>` per generated file |
 | Go | `go vet <package>/...` |
 | C# | `dotnet build <TestProject>.csproj` |
+| C++ (xmake) | `xmake build --all` |
+| C++ (CMake) | `cmake --build build` |
 
 ### Step 1.2: Analyze Test Compilation Errors
 
@@ -303,6 +307,16 @@ After fixing these issues, run: <test-compile-command>
 ### C# (.NET)
 - Missing package → suggest `dotnet add <TestProject> package <PackageName>`
 - Project reference missing → suggest `dotnet add <TestProject> reference <SourceProject>`
+
+### C++ (xmake)
+- Missing dependency → suggest `add_requires("gtest")` in xmake.lua
+- Link error → suggest `add_packages("gtest")` in the target definition
+- CMake project detected but xmake expected → suggest `xmake project -k cmake` to generate CMake
+- Coverage not enabled → suggest `add_rules("mode.coverage")` in xmake.lua
+
+### C++ (CMake)
+- Missing package → suggest `find_package(GTest REQUIRED)` in CMakeLists.txt
+- Link error → suggest `target_link_libraries(<test_target> GTest::GTest GTest::GMock)`
 
 ---
 

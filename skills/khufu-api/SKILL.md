@@ -344,6 +344,71 @@ async def test_get_user_valid_id():
         assert "name" in data
 ```
 
+### Language-Agnostic API Testing for C++ Backends
+
+**Important:** For C++ HTTP/REST API backends, we recommend **language-agnostic API testing**. API tests verify behavior at the HTTP boundary — the backend implementation language is irrelevant to the test client.
+
+**Primary recommendation: Python pytest + httpx**
+
+Python has the richest ecosystem for API testing (schemathesis, hypothesis, OpenAPI tooling). Use it to test any HTTP API regardless of backend language.
+
+```python
+import pytest
+import httpx
+
+BASE_URL = "http://localhost:8080"
+
+# Spec: specs/UserService/spec.v1.md
+# Spec ID: API-USER-001
+# Evaluates: Correctness — HTTP 契约正确
+@pytest.mark.asyncio
+async def test_get_user_valid_id():
+    async with httpx.AsyncClient(base_url=BASE_URL) as client:
+        response = await client.get("/api/users/1")
+        assert response.status_code == 200
+        data = response.json()
+        assert "id" in data
+        assert "name" in data
+```
+
+**Alternative: Node.js Supertest (language-agnostic)**
+
+```typescript
+import request from 'supertest';
+
+const BASE_URL = 'http://localhost:8080';
+
+/**
+ * Spec: specs/UserService/spec.v1.md
+ * Spec ID: API-USER-001 | Evaluates: Correctness
+ */
+describe('GET /api/users/:id', () => {
+  it('should return user with valid id', async () => {
+    const res = await request(BASE_URL)
+      .get('/api/users/1')
+      .expect(200);
+    expect(res.body).toHaveProperty('id', 1);
+  });
+});
+```
+
+**C++ Native Option (for teams that prefer C++ throughout):**
+
+```cpp
+#include <gtest/gtest.h>
+#include <httplib.h>
+
+// Spec: specs/UserService/spec.v1.md
+// Spec ID: API-USER-001
+// Evaluates: Correctness — HTTP 契约正确
+TEST(UserApiTest, ShouldReturnUserWhenValidIdGiven) {
+    httplib::Client cli("http://localhost:8080");
+    auto res = cli.Get("/api/users/1");
+    ASSERT_EQ(res->status, 200);
+    // Parse and validate JSON response
+}
+```
+
 ## Contract Testing (Optional)
 
 If the user mentions "contract testing" or "Pact", also generate consumer contract tests:

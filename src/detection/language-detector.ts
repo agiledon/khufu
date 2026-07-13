@@ -20,6 +20,8 @@ const CONFIG_FILE_MAP: Array<{ file: string; language: string }> = [
   { file: 'Cargo.toml', language: 'rust' },
   { file: 'Gemfile', language: 'ruby' },
   { file: 'mix.exs', language: 'elixir' },
+  { file: 'CMakeLists.txt', language: 'c++' },
+  { file: 'xmake.lua', language: 'c++' },
   { file: 'package.json', language: 'typescript' }, // Will be refined
 ];
 
@@ -40,6 +42,12 @@ const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
   '.cs': 'c#',
   '.ex': 'elixir',
   '.exs': 'elixir',
+  '.cpp': 'c++',
+  '.cc': 'c++',
+  '.cxx': 'c++',
+  '.hpp': 'c++',
+  '.hxx': 'c++',
+  '.h': 'c++',
 };
 
 export interface DetectionResult {

@@ -18,6 +18,8 @@ describe('LanguageDetector', () => {
     'go.mod': 'go',
     'Cargo.toml': 'rust',
     'Gemfile': 'ruby',
+    'xmake.lua': 'c++',
+    'CMakeLists.txt': 'c++',
   };
 
   it('should map known config files to correct languages', () => {
@@ -81,6 +83,26 @@ describe('LanguageDetector - integration', () => {
     });
   });
 
+  it('should detect C++ project from xmake.lua', async () => {
+    await withTempDir({ 'xmake.lua': 'add_rules("mode.debug")' }, async (dir) => {
+      const { detectLanguage } = await import('../src/detection/language-detector.js');
+      const result = await detectLanguage(dir);
+      expect(result).toBeDefined();
+      expect(result!.language).toBe('c++');
+      expect(result!.confidence).toBe('high');
+    });
+  });
+
+  it('should detect C++ project from CMakeLists.txt', async () => {
+    await withTempDir({ 'CMakeLists.txt': 'cmake_minimum_required(VERSION 3.16)' }, async (dir) => {
+      const { detectLanguage } = await import('../src/detection/language-detector.js');
+      const result = await detectLanguage(dir);
+      expect(result).toBeDefined();
+      expect(result!.language).toBe('c++');
+      expect(result!.confidence).toBe('high');
+    });
+  });
+
   it('should detect TypeScript from package.json and tsconfig.json', async () => {
     await withTempDir(
       {
@@ -118,6 +140,21 @@ describe('LanguageDetector - integration', () => {
       const { detectLanguage } = await import('../src/detection/language-detector.js');
       const result = await detectLanguage(dir);
       expect(result).toBeDefined();
+      expect(result!.confidence).toBe('medium');
+    });
+  });
+
+  it('should detect C++ from .cpp file extension fallback', async () => {
+    await withTempDir({}, async (dir) => {
+      const srcDir = path.join(dir, 'src');
+      await fs.ensureDir(srcDir);
+      await fs.writeFile(path.join(srcDir, 'main.cpp'), 'int main() { return 0; }', 'utf-8');
+      await fs.writeFile(path.join(srcDir, 'utils.cpp'), 'void util() {}', 'utf-8');
+
+      const { detectLanguage } = await import('../src/detection/language-detector.js');
+      const result = await detectLanguage(dir);
+      expect(result).toBeDefined();
+      expect(result!.language).toBe('c++');
       expect(result!.confidence).toBe('medium');
     });
   });

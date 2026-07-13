@@ -269,6 +269,40 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated E2E test 
 
 ## E2E Test Patterns
 
+### C++ Project Notes
+
+**For C++ backend services with web frontends:** Use Playwright in a separate project (TypeScript recommended). E2E tests are language-agnostic — they interact with the running application through the browser, regardless of the backend implementation language.
+
+**For Qt desktop applications:** E2E testing is tied to the C++ Qt framework. Use Qt Test with widget simulation:
+
+```cpp
+#include <QtTest>
+#include <QApplication>
+#include <QPushButton>
+#include <QSignalSpy>
+
+class LoginE2ETest : public QObject {
+    Q_OBJECT
+
+private slots:
+    // Spec: specs/LoginFlow/spec.v1.md
+    // Spec ID: E2E-LOGIN-001
+    // Evaluates: User Journey — 关键用户旅程
+    void shouldLoginSuccessfullyWithValidCredentials() {
+        QPushButton loginButton("Login");
+        QSignalSpy spy(&loginButton, &QPushButton::clicked);
+
+        QTest::mouseClick(&loginButton, Qt::LeftButton);
+        QCOMPARE(spy.count(), 1);
+    }
+};
+
+QTEST_MAIN(LoginE2ETest)
+#include "login_e2e.moc"
+```
+
+**Note:** Qt E2E testing requires a running QApplication event loop. For complex UI flows, consider Squish (commercial) or test widgets/screens in isolation with Qt Test.
+
 ### Playwright (TypeScript) — Recommended
 ```typescript
 import { test, expect } from '@playwright/test';

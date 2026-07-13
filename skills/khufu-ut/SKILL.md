@@ -116,7 +116,9 @@ Follow the module's workflow to build a **skip list**:
    | npm/pnpm/yarn workspaces | `package.json` | `workspaces` array |
    | Nx | `nx.json` | project entries |
    | Turborepo | `turbo.json` + `package.json` workspaces |
-   | SBT (Scala) | `build.sbt` | sub-project definitions |
+   | xmake | `xmake.lua` | `target()` definitions and `includes()` for subdirs |
+| CMake | `CMakeLists.txt` | `add_subdirectory()` calls |
+| SBT (Scala) | `build.sbt` | sub-project definitions |
 
 2. **For each module, record**:
    - Module name and source directory (e.g., `roncoo-pay-service` → `roncoo-pay-service/src/main/java/`)
@@ -258,6 +260,7 @@ If the user chooses option 1, generate tests with:
 - Python: `unittest.mock.patch.object` on class/static methods, `pytest.mark.fragile`
 - TypeScript: `jest.spyOn` on static methods with `// @tag: fragile` comment
 - Go: manual interface extraction + `//go:build fragile` build tag
+- C++: GMock `MOCK_METHOD` for interface mocking, `// @tag: fragile` comment for tightly coupled code
 - C#: Moq with `[Trait("Category", "Fragile")]`
 
 #### 4.4 Handling Grade C (Untestable)
@@ -493,6 +496,39 @@ describe('UserService', () => {
     // Assert
   });
 });
+```
+
+### C++ / Google Test
+```cpp
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
+using ::testing::Return;
+
+class MockUserRepository : public UserRepository {
+public:
+    MOCK_METHOD(User, findById, (int id), (override));
+};
+
+// Spec: specs/UserRegistration/spec.v1.md
+// Spec ID: UT-USER-001
+// Evaluates: Correctness — 正常输入返回 User
+TEST(UserServiceTest, ShouldReturnUserWhenValidIdGiven) {
+    // Arrange
+    MockUserRepository mockRepo;
+    User expectedUser{1, "test@example.com"};
+    EXPECT_CALL(mockRepo, findById(1))
+        .WillOnce(Return(expectedUser));
+
+    UserService service(&mockRepo);
+
+    // Act
+    User result = service.getUser(1);
+
+    // Assert
+    EXPECT_EQ(result.getId(), 1);
+    EXPECT_EQ(result.getEmail(), "test@example.com");
+}
 ```
 
 ## Best Practices

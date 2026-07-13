@@ -312,6 +312,46 @@ Same process as UT — see `_shared/evaluation-framework.md`. Mark generated IT 
 - Files created
 - Next steps: start Docker containers (if Testcontainers), run migrations, execute tests
 
+### C++ / Google Test + testcontainers-c
+```cpp
+#include <gtest/gtest.h>
+#include <testcontainers/testcontainers.h>
+
+// Spec: specs/UserRegistration/spec.v1.md
+// Spec ID: IT-USER-001
+// Evaluates: Robustness — 数据实际持久化
+class UserRepositoryIT : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Start PostgreSQL testcontainer
+        postgres_ = testcontainers::PostgresContainer("postgres:16");
+        postgres_.start();
+
+        // Connect and create tables
+        db_ = connectToDb(postgres_.getJdbcUrl(),
+                          postgres_.getUsername(),
+                          postgres_.getPassword());
+        runMigrations(db_);
+    }
+
+    void TearDown() override {
+        postgres_.stop();
+    }
+
+    testcontainers::PostgresContainer postgres_;
+    Database db_;
+};
+
+TEST_F(UserRepositoryIT, ShouldPersistUserToDatabase) {
+    User user{0, "test@example.com"};
+    repository_.save(user);
+
+    auto found = repository_.findById(user.getId());
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(found->getEmail(), "test@example.com");
+}
+```
+
 ## Integration Test Patterns
 
 ### H2 Lightweight (Java + Spring Boot)

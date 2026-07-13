@@ -128,6 +128,38 @@ describe('DefaultConfig — Unit Tests', () => {
     });
   });
 
+  describe('getDefaultConfig — C++ defaults', () => {
+    it('should set C++ frameworks correctly', () => {
+      const config = getDefaultConfig(['claude'], 'c++');
+      expect(config.frameworks.ut).toBe('gtest');
+      expect(config.frameworks.it).toBe('gtest');
+      expect(config.frameworks.api).toBe('pytest-httpx');
+      expect(config.frameworks.e2e).toBe('playwright');
+    });
+
+    it('should set C++ frameworks (cpp alias)', () => {
+      const config = getDefaultConfig(['claude'], 'cpp');
+      expect(config.frameworks.ut).toBe('gtest');
+    });
+
+    it('should set C++ directories correctly', () => {
+      const config = getDefaultConfig(['claude'], 'c++');
+      expect(config.directories.ut).toBe('tests/ut/');
+      expect(config.directories.it).toBe('tests/it/');
+      expect(config.directories.api).toBe('tests/api/');
+      expect(config.directories.e2e).toBe('tests/e2e/');
+    });
+
+    it('should set C++ coverage defaults', () => {
+      const config = getDefaultConfig(['claude'], 'c++');
+      expect(config.coverage.ut!.tool).toBe('gcov-lcov');
+      expect(config.coverage.ut!.thresholds!.line).toBe(80);
+      expect(config.coverage.ut!.thresholds!.branch).toBe(70);
+      expect(config.coverage.ut!.formats).toContain('lcov');
+      expect(config.coverage.it!.thresholds!.line).toBe(60);
+    });
+  });
+
   describe('getDefaultConfig — unknown language', () => {
     it('should return empty config for unknown language', () => {
       const config = getDefaultConfig(['claude'], 'haskell');
@@ -138,7 +170,7 @@ describe('DefaultConfig — Unit Tests', () => {
   });
 
   describe('getDefaultConfig — all pyramid levels present for known languages', () => {
-    const languages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#'];
+    const languages = ['java', 'python', 'typescript', 'javascript', 'go', 'c#', 'c++'];
 
     for (const lang of languages) {
       it(`${lang}: should have all pyramid level frameworks`, () => {

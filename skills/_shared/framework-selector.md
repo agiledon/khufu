@@ -37,6 +37,12 @@ Use **AskUserQuestion** to let the user choose. Present the most relevant option
 - **testing + testify** (Recommended): Standard library with testify for assertions and mocking.
 - **testing (stdlib)**: No external dependencies, pure standard library.
 
+**C++:**
+- **Google Test** (Recommended): Google's C++ testing and mocking framework. Widely adopted, feature-rich with test discovery, fixtures, and death tests. Use gmock for mocking.
+- **Catch2** (Alternative): Modern, header-only test framework with expressive assertion macros and BDD-style sections.
+- **doctest** (Alternative): Fastest C++ testing framework with low compile-time overhead. Single-header.
+- **Qt Test** (Alternative for Qt projects): Qt's built-in testing module. Integrates with signal/slot mechanism and event loop.
+
 **C#:**
 - **xUnit** (Recommended): Modern .NET framework with excellent extensibility.
 - **NUnit**: Mature with rich assertion model.
@@ -67,6 +73,10 @@ Use **AskUserQuestion** to let the user choose. Present the most relevant option
 - **testing + dockertest** (Recommended): Docker-based test containers for Go.
 - **testing + httptest**: Built-in HTTP test server for handler testing.
 
+**C++:**
+- **Google Test + testcontainers-c** (Recommended): Google Test with Docker-based service containers for database and external service testing.
+- **Google Test + Boost.Beast** (Alternative): HTTP client/server integration testing using Boost.Beast.
+
 **C#:**
 - **xUnit + Testcontainers** (Recommended): Docker-based test containers for .NET.
 - **xUnit + WebApplicationFactory**: ASP.NET Core integration testing with in-memory test server.
@@ -93,6 +103,11 @@ Use **AskUserQuestion** to let the user choose. Present the most relevant option
 - **testing + httptest** (Recommended): Standard library HTTP test server.
 - **go-resty + testing**: Fluent HTTP client for API testing.
 
+**C++:**
+- **Language-agnostic (pytest + httpx)** (Recommended): Use Python's pytest + httpx for API testing of C++ backends. Language-agnostic — test HTTP endpoints regardless of backend implementation language. Richer ecosystem for API testing.
+- **Language-agnostic (Supertest)** (Alternative): Use Node.js Supertest for API testing. Great for teams using JS/TS tooling.
+- **Google Test + cpp-httplib** (Alternative, C++ native): For teams that prefer staying in C++ across all layers.
+
 **C#:**
 - **RestSharp + xUnit** (Recommended): Popular REST client with xUnit integration.
 - **xUnit + WebApplicationFactory**: ASP.NET Core in-memory test server.
@@ -113,6 +128,10 @@ Use **AskUserQuestion** to let the user choose. Present the most relevant option
 
 **Python ecosystem:**
 - **Playwright (Python)** or **Selenium (Python)**
+
+**C++ ecosystem:**
+- **Playwright (external)** (Recommended for web frontends): E2E testing in a separate project.
+- **Qt Test** (Alternative for Qt desktop apps): Qt's built-in GUI testing with widget interaction simulation.
 
 ---
 

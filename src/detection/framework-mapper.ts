@@ -207,6 +207,28 @@ module.exports = {
       it: { line: 60, branch: 50 },
     },
   },
+
+  'c++': {
+    name: 'gcov + lcov',
+    language: 'c++',
+    description:
+      'Standard GNU coverage toolchain for C/C++. gcov generates coverage data, lcov converts it to HTML reports. Integrated with xmake via coverage mode.',
+    runCommand: 'xmake f -m coverage && xmake build && xmake run <test_target>',
+    configExample: `-- xmake.lua coverage configuration
+add_rules("mode.coverage")
+-- Coverage mode adds --coverage flag to compiler and linker
+-- Build: xmake f -m coverage && xmake build
+-- Run tests: xmake run <test_target>
+-- Generate report:
+--   lcov --capture --directory build/ --output-file coverage.info
+--   genhtml coverage.info --output-directory coverage_report/
+`,
+    formats: ['lcov', 'html', 'cobertura', 'json'],
+    recommendedThresholds: {
+      ut: { line: 80, branch: 70 },
+      it: { line: 60, branch: 50 },
+    },
+  },
 };
 
 /**
@@ -647,6 +669,115 @@ const FRAMEWORK_MAP: Record<string, Record<PyramidLevel, Framework[]>> = {
       },
     ],
   },
+
+  'c++': {
+    ut: [
+      {
+        name: 'Google Test',
+        language: 'c++',
+        level: 'ut',
+        description:
+          "Google's C++ testing and mocking framework. Widely adopted, feature-rich with test discovery, fixtures, and death tests. Recommended for all new C++ projects.",
+        recommendation: 'primary',
+        dependencies: ['gtest'],
+      },
+      {
+        name: 'Catch2',
+        language: 'c++',
+        level: 'ut',
+        description:
+          'Modern, header-only C++ test framework with expressive assertion macros and BDD-style sections. Lightweight alternative to Google Test.',
+        recommendation: 'alternative',
+        dependencies: ['catch2'],
+      },
+      {
+        name: 'doctest',
+        language: 'c++',
+        level: 'ut',
+        description:
+          'Fastest C++ testing framework with low compile-time overhead. Single-header, feature-rich with BDD style, subcases, and property-based testing.',
+        recommendation: 'alternative',
+        dependencies: ['doctest'],
+      },
+      {
+        name: 'Qt Test',
+        language: 'c++',
+        level: 'ut',
+        description:
+          "Qt framework's built-in testing module. Best choice for Qt-based projects — integrates with Qt's signal/slot mechanism, event loop, and GUI classes.",
+        recommendation: 'alternative',
+        dependencies: ['Qt5::Test', 'Qt6::Test'],
+      },
+    ],
+    it: [
+      {
+        name: 'Google Test + testcontainers-c',
+        language: 'c++',
+        level: 'it',
+        description:
+          'Google Test with Docker-based service containers for integration testing of databases, caches, and external services.',
+        recommendation: 'primary',
+        dependencies: ['gtest', 'testcontainers-c'],
+      },
+      {
+        name: 'Google Test + Boost.Beast',
+        language: 'c++',
+        level: 'it',
+        description:
+          'Google Test with Boost.Beast for HTTP client/server integration testing. Good for testing REST endpoints in-process.',
+        recommendation: 'alternative',
+        dependencies: ['gtest', 'boost'],
+      },
+    ],
+    api: [
+      {
+        name: 'Language-agnostic (pytest + httpx)',
+        language: 'c++',
+        level: 'api',
+        description:
+          'Recommended: Use Python pytest + httpx for API testing of C++ backends. Language-agnostic — test HTTP endpoints regardless of backend language. Richer ecosystem, faster test development.',
+        recommendation: 'primary',
+        dependencies: ['pytest', 'httpx'],
+      },
+      {
+        name: 'Language-agnostic (Supertest)',
+        language: 'c++',
+        level: 'api',
+        description:
+          'Use Node.js Supertest for API testing of C++ backends. Great for teams already using JavaScript/TypeScript tooling.',
+        recommendation: 'alternative',
+        dependencies: ['jest', 'supertest'],
+      },
+      {
+        name: 'Google Test + cpp-httplib',
+        language: 'c++',
+        level: 'api',
+        description:
+          'C++ native option: Google Test with cpp-httplib for HTTP client testing. Use when the team prefers staying in C++ for all test layers.',
+        recommendation: 'alternative',
+        dependencies: ['gtest', 'cpp-httplib'],
+      },
+    ],
+    e2e: [
+      {
+        name: 'Playwright (external)',
+        language: 'c++',
+        level: 'e2e',
+        description:
+          'E2E testing via Playwright in a separate test project. Recommended approach for C++ backend services with web frontends.',
+        recommendation: 'primary',
+      },
+      {
+        name: 'Qt Test (GUI E2E)',
+        language: 'c++',
+        level: 'e2e',
+        description:
+          'For Qt desktop applications: Qt Test with GUI simulation. Tests widget interactions, signal/slot chains, and window behavior.',
+        recommendation: 'alternative',
+        dependencies: ['Qt5::Test', 'Qt5::Widgets'],
+      },
+    ],
+  },
 };
 
 /**
@@ -689,5 +820,6 @@ function mapLanguage(language: string): string {
   if (normalized === 'csharp' || normalized === 'csharp') return 'c#';
   if (normalized === 'js') return 'javascript';
   if (normalized === 'ts') return 'typescript';
+  if (normalized === 'cpp' || normalized === 'cplusplus') return 'c++';
   return normalized;
 }

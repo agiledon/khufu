@@ -174,6 +174,36 @@ function getLanguageDefaults(language: string): LanguageDefaults {
           },
         },
       };
+    case 'c++':
+    case 'cpp':
+      return {
+        frameworks: {
+          ut: 'gtest',
+          it: 'gtest',
+          api: 'pytest-httpx',
+          e2e: 'playwright',
+        },
+        directories: {
+          ut: 'tests/ut/',
+          it: 'tests/it/',
+          api: 'tests/api/',
+          e2e: 'tests/e2e/',
+        },
+        coverage: {
+          ut: {
+            tool: 'gcov-lcov',
+            thresholds: { line: 80, branch: 70 },
+            formats: ['lcov', 'html', 'cobertura'],
+            excludes: ['tests/*', '**/mocks/*', '**/generated/*', '**/ui_*.h'],
+          },
+          it: {
+            tool: 'gcov-lcov',
+            thresholds: { line: 60, branch: 50 },
+            formats: ['lcov', 'html'],
+            excludes: ['tests/*', '**/mocks/*'],
+          },
+        },
+      };
     default:
       return {
         frameworks: {},

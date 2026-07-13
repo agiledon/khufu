@@ -47,6 +47,7 @@ coverage:
 | TypeScript/JS (Jest) | Istanbul (built-in) | `jest --coverage` |
 | TypeScript (Vitest) | v8/istanbul (built-in) | `vitest run --coverage` |
 | Go | go test -cover | `go test -coverprofile=coverage.out ./...` |
+| C++ | gcov + lcov | `xmake f -m coverage && xmake build && xmake run <test_target>` |
 | C# | coverlet | `dotnet test /p:CollectCoverage=true` |
 
 ### 3. Default Thresholds by Layer
@@ -117,6 +118,18 @@ collectCoverageFrom: [
   '!src/**/*.d.ts',
   '!src/**/index.ts',
 ],
+```
+
+**C++ (xmake) — `xmake.lua`:**
+```lua
+-- Enable coverage mode (adds --coverage flag to compiler and linker)
+add_rules("mode.coverage")
+
+-- Build with: xmake f -m coverage && xmake build
+-- Run tests: xmake run <test_target>
+-- Generate report:
+--   lcov --capture --directory build/ --output-file coverage.info
+--   genhtml coverage.info --output-directory coverage_report/
 ```
 
 **TypeScript (Vitest) — `vitest.config.ts`:**
