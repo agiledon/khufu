@@ -2,7 +2,7 @@
 name: khufu-api
 description: >-
   This skill should be used when the user wants to generate API tests, asks for "API tests", mentions "API测试", "khufu-api", "REST tests", "contract tests", or wants to test HTTP/REST/gRPC endpoints. Supports spec-based generation (with @path to OpenAPI/Swagger spec or API documentation) and code-based generation (from existing route definitions and handlers). API tests verify the application from the network boundary — status codes, response bodies, headers, and error formats.
-version: 0.2.1
+version: 0.3.0
 allowed-tools:
   - Read
   - Write
@@ -259,7 +259,15 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated API test 
 
 ### Step 10: Generate Spec Documentation (SDD)
 
-**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document.
+
+**MANDATORY — Before any file operations**, ensure the base directory and current layer's subdirectory exist:
+
+```bash
+mkdir -p docs/khufu/api
+```
+
+> Only create the `api/` subdirectory — do NOT create subdirectories for other test types (ut/, it/, e2e/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 8 (test execution) and 9 (endpoint coverage):
    - Test execution results: which tests passed/failed/skipped

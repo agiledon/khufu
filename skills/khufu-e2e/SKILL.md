@@ -2,7 +2,7 @@
 name: khufu-e2e
 description: >-
   This skill should be used when the user wants to generate end-to-end tests, asks for "E2E tests", mentions "端到端测试", "khufu-e2e", "browser tests", "UI tests", or wants to test complete user journeys through the entire system. Supports spec-based generation (with @path to user story or workflow documents) and code-based generation (from existing application routes and pages). E2E tests are the tip of the test pyramid — fewest in number, slowest, but cover the most critical business flows.
-version: 0.2.1
+version: 0.3.0
 allowed-tools:
   - Read
   - Write
@@ -270,7 +270,15 @@ Same process — see `_shared/evaluation-framework.md`. Mark generated E2E test 
 
 ### Step 12: Generate Spec Documentation (SDD)
 
-**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document.
+
+**MANDATORY — Before any file operations**, ensure the base directory and current layer's subdirectory exist:
+
+```bash
+mkdir -p docs/khufu/e2e
+```
+
+> Only create the `e2e/` subdirectory — do NOT create subdirectories for other test types (ut/, it/, api/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 10 (test execution) and 11 (scenario coverage):
    - Test execution results: which tests passed/failed/skipped

@@ -173,7 +173,7 @@
 | Public 方法覆盖 | 100% | 100% (5/5) | ✅ |
 
 **Evaluation Date:** 2026-06-25
-**Evaluated By:** khufu-ut v0.2.1
+**Evaluated By:** khufu-ut v0.3.0
 
 **Open Issues:**
 - [ ] 分支覆盖率差 3%，需补充 `createUser()` 中 null-check 分支的测试（对应 UT-USER-003）

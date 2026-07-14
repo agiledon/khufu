@@ -1,6 +1,6 @@
 {
   "name": "khufu-kit",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Test generation skill framework following the test pyramid methodology. Provides /khufu-ut, /khufu-it, /khufu-api, and /khufu-e2e skills for generating unit, integration, API, and end-to-end tests with TDD best practices.",
   "author": {
     "name": "Khufu Authors"

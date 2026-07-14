@@ -7,7 +7,7 @@ export function createProgram(): Command {
   program
     .name('khufu')
     .description('🔺 Test generation skill framework for AI IDEs')
-    .version('0.2.1');
+    .version('0.3.0');
 
   program
     .command('init')

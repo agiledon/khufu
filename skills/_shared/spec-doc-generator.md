@@ -8,6 +8,27 @@ Shared module for generating and updating execution record spec documents after 
 
 ## Workflow
 
+### Step 0: Ensure Directory Structure (MANDATORY — Run First)
+
+**BEFORE any file reading or writing**, ensure the required directories exist.
+
+Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`).
+
+Use **Bash** to create only the directories needed for the **current test layer**:
+
+```bash
+mkdir -p <docsDirectory>/<layer>
+```
+
+Example for UT layer with default config:
+```bash
+mkdir -p docs/khufu/ut
+```
+
+**Only create the subdirectory for the current layer** (ut/, it/, api/, or e2e/). Do NOT create subdirectories for other test types — they will be created when those test types run.
+
+**This step MUST be executed even if the directory appears to exist** — `mkdir -p` is idempotent and safe.
+
 ### Step 1: Collect Data
 
 After test compilation and execution (Steps 10-A and 10-B in each SKILL.md), collect:
@@ -122,20 +143,32 @@ coverageTool: <tool name> <version>
 
 ### Step 5: Write the Spec Doc
 
-Use **Write** to create or overwrite the spec doc file at the determined path.
-
-Ensure the directory exists first:
+Use **Bash** to ensure the target layer directory exists (idempotent, safe to run even if it exists):
 ```bash
-mkdir -p docs/khufu/<layer>/
+mkdir -p <docsDirectory>/<layer>/
 ```
+
+Then use **Write** to create or overwrite the spec doc file at:
+```
+<docsDirectory>/<layer>/<YYYY-MM-DD>-<layer>-test-cases.md
+```
+
+**CRITICAL**: The `mkdir -p` command MUST run before the **Write** call. The Write tool does not auto-create parent directories.
 
 ### Step 6: Update the Wizard File (test-cases.md)
 
 The wizard file at `<docsDirectory>/test-cases.md` serves as the index of all spec docs.
 
+#### 6.0 Ensure Wizard Directory Exists
+
+**MANDATORY**: Before reading or writing the wizard file, ensure the directory exists:
+```bash
+mkdir -p <docsDirectory>
+```
+
 #### 6.1 Check if wizard exists
 
-Read `<docsDirectory>/test-cases.md`.
+Read `<docsDirectory>/test-cases.md`. If the Read fails (file not found), treat it as "wizard does NOT exist" (Step 6.3).
 
 #### 6.2 If wizard EXISTS:
 
@@ -143,15 +176,17 @@ Read `<docsDirectory>/test-cases.md`.
 2. Increment version: `newVersion = oldVersion + 1`
 3. Update `updated` timestamp
 4. In the "Recent Generations" table:
-   - **If a row for today's date + current layer exists**: Update the Tests/Passed/Failed counts
-   - **If no row exists**: Insert a new row at the top (rows ordered by date descending, then type)
+   - **If a row for today's date + current layer exists**: Update the Tests/Passed/Failed counts for that row only
+   - **If no row exists**: Insert a new row at the top for the current layer only
+   - **Do NOT modify rows for other test types or dates** — they remain as-is
 5. In the "Coverage Overview" table:
    - Update or insert the row for the current layer + date
+   - **Do NOT modify rows for other test types**
 6. Write the updated wizard file
 
 #### 6.3 If wizard does NOT exist:
 
-Create it with `version: 1`:
+Create it with `version: 1`. **Only include the current layer** in the tables — do NOT pre-populate rows for layers that have not run:
 
 ```markdown
 ---
@@ -168,13 +203,13 @@ This file is the master index of all test case specification documents generated
 
 | Date | Type | File | Tests | Passed | Failed |
 |------|------|------|-------|--------|--------|
-| <YYYY-MM-DD> | <UT/IT/API/E2E> | [<filename>.md](<layer>/<filename>.md) | <N> | <N> | <N> |
+| <YYYY-MM-DD> | <UT> | [<filename>.md](<layer>/<filename>.md) | <N> | <N> | <N> |
 
 ## Coverage Overview
 
 | Type | Date | Line % | Branch % | Report |
 |------|------|--------|----------|--------|
-| <UT/IT/API/E2E> | <YYYY-MM-DD> | <percent>% | <percent>% | [report](<layer>/coverage/) |
+| <UT> | <YYYY-MM-DD> | <percent>% | <percent>% | [report](<layer>/coverage/) |
 
 ## How to Use
 
@@ -188,7 +223,10 @@ This file is the master index of all test case specification documents generated
 - Each spec document is independently versioned (see frontmatter `version` field)
 - Spec documents with the same date and test type are merged (not duplicated)
 - Coverage reports are linked relative to this file's directory
+- Only test types that have been executed appear in this index
 ```
+
+**Important**: When updating the wizard in subsequent runs with different test types, ADD rows for the new type — never remove existing rows for other types. The wizard accumulates entries across all test types over time.
 
 ### Step 7: Confirm
 

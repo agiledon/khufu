@@ -2,7 +2,7 @@
 name: khufu-it
 description: >-
   This skill should be used when the user wants to generate integration tests, asks for "integration tests", mentions "集成测试", "khufu-it", or wants to test how multiple components work together. Supports spec-based generation (with @path to spec documents) and code-based generation (from existing implementations). Integration tests verify multiple real components interacting together, such as service + database or controller + service + repository.
-version: 0.2.1
+version: 0.3.0
 allowed-tools:
   - Read
   - Write
@@ -315,7 +315,15 @@ Same process as UT — see `_shared/evaluation-framework.md`. Mark generated IT 
 
 ### Step 11: Generate Spec Documentation (SDD)
 
-**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document:
+**Read `_shared/spec-doc-generator.md`** and follow its workflow to produce the execution record spec document.
+
+**MANDATORY — Before any file operations**, ensure the base directory and current layer's subdirectory exist:
+
+```bash
+mkdir -p docs/khufu/it
+```
+
+> Only create the `it/` subdirectory — do NOT create subdirectories for other test types (ut/, api/, e2e/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 9 (test execution) and 10 (coverage):
    - Test execution results: which tests passed/failed/skipped
