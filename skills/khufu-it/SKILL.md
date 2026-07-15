@@ -340,22 +340,24 @@ mkdir -p docs/khufu/it
 > Only create the `it/` subdirectory — do NOT create subdirectories for other test types (ut/, api/, e2e/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 9 (test execution) and 10 (coverage):
-   - Test execution results: which tests passed/failed/skipped
-   - Coverage data: overall and per-class line/branch coverage
-   - Framework info: Google Test version, gcov+lcov version
-   - Test case details: for each generated test — Test Class, Test Method, Target Vertical Slice, Status
+   - Module/component inventory and test files generated
+   - Test execution results: pass/fail/skip per component
+   - Coverage data: overall line/branch coverage
+   - Framework info: test framework + version, coverage tool + version
+   - Test case details grouped by component: Test Class, Target Class, Target Method(s), Status
 
 2. **Determine the spec doc path**:
    - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
    - Path: `docs/khufu/it/<YYYY-MM-DD>-it-test-cases.md`
 
-3. **Check for existing spec doc** (same date + same layer):
-   - **If today's spec doc exists**: Read → increment version → **APPEND new test cases** (do not remove existing rows) → recalculate Summary with combined old+new counts → update Coverage Statistics with latest data
-   - **If not exists**: Create with `version: 1`
+3. **Build the spec doc** following the template in `_shared/spec-doc-generator.md`:
+   - Metadata block, Summary, Module Summary, Test Cases by component, Coverage Statistics, Known Issues
 
-4. **Write the spec doc** using the template.
+4. **Check for existing spec doc** (same date + same layer):
+   - **If exists**: Read → increment `**Version**` → **APPEND** within each component's subsection
+   - **If not exists**: Create with `**Version**: 1`
 
-5. **Update the wizard file** `docs/khufu/test-cases.md` — update the row for today's IT generation with recalculated counts. Do NOT modify rows for other test types.
+5. **Write the spec doc** and **update the wizard file** `docs/khufu/test-cases.md`.
 
 ### Step 12: Report Summary
 

@@ -45,17 +45,17 @@ If **no spec docs found** (first ever run for this layer), return an empty skip 
 **For every spec doc found in Step 2** (all dates, not just today):
 
 1. **Read the spec doc file**
-2. **Extract the "Test Cases" table**:
-   - Columns: #, Test Class, Test Method, Target Class, Target Method, Status
-   - **Include ALL rows regardless of Status** — even ❌ and ⏭️ entries represent existing tests that should not be regenerated
+2. **Extract the "Test Cases" section** — parse each `### <module-name>` subsection's table:
+   - Columns: Test Class, Target Class, Target Method(s), Status
+   - **Include ALL rows regardless of Status** — even ⚠️ entries represent existing tests that should not be regenerated
 3. **Build covered-item set** for each row:
    ```
    {
      targetClass: "UserService",
-     targetMethod: "createUser",
+     targetMethods: ["createUser", "deleteUser"],
      testClass: "UserServiceTest",
-     testMethod: "ShouldCreateUserWhenValidInputGiven",
      status: "✅",
+     module: "roncoo-pay-service",
      specDoc: "ut/2026-07-13-ut-test-cases.md"
    }
    ```
@@ -69,12 +69,10 @@ Compile all covered items from ALL spec docs into a single skip list, deduplicat
 
 Source: docs/khufu/ execution record specs (all dates)
 
-| Target Class | Target Method | Covered By | Status | Spec Doc |
-|-------------|--------------|-----------|--------|-----------|
-| UserService | createUser | UserServiceTest.ShouldCreateUser... | ✅ | ut/2026-07-13-ut-test-cases.md |
-| UserService | createUser | UserServiceTest.ShouldThrowWhen... | ✅ | ut/2026-07-13-ut-test-cases.md |
-| UserService | deleteUser | UserServiceTest.ShouldDelete... | ✅ | ut/2026-07-13-ut-test-cases.md |
-| OrderService | calculateTotal | OrderServiceTest.ShouldCalc... | ✅ | ut/2026-07-14-ut-test-cases.md |
+| Module | Target Class | Target Method(s) | Covered By | Status | Spec Doc |
+|--------|-------------|------------------|-----------|--------|-----------|
+| roncoo-pay-service | UserService | createUser, deleteUser | UserServiceTest | ✅ | ut/2026-07-13-ut-test-cases.md |
+| roncoo-pay-service | OrderService | calculateTotal | OrderServiceTest | ✅ | ut/2026-07-14-ut-test-cases.md |
 ```
 
 The dedup rule: if the same `targetClass + targetMethod` appears in multiple spec docs, keep ALL test entries (they test different behaviors of the same method). The skip applies at the **test method** level, not just the target method level.

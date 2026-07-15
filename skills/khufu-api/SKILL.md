@@ -284,22 +284,23 @@ mkdir -p docs/khufu/api
 > Only create the `api/` subdirectory — do NOT create subdirectories for other test types (ut/, it/, e2e/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 8 (test execution) and 9 (endpoint coverage):
-   - Test execution results: which tests passed/failed/skipped
-   - Endpoint coverage matrix: method, path, status codes tested, schema validated
-   - Framework info: pytest + httpx version (or whichever API test framework was used)
-   - Test case details: for each generated test — Test Class, Test Method, Endpoint (Target), Status
+   - Resource group/endpoint inventory and test files generated
+   - Test execution results: pass/fail/skip per endpoint
+   - Endpoint coverage matrix: method, path, status codes, schema validated
+   - Framework info: test framework + version
+   - Test case details grouped by resource: Test Class, Endpoint (Target), HTTP Methods, Status
 
 2. **Determine the spec doc path**:
    - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
    - Path: `docs/khufu/api/<YYYY-MM-DD>-api-test-cases.md`
 
-3. **Check for existing spec doc** (same date + same layer):
-   - **If today's spec doc exists**: Read → increment version → **APPEND new test cases** (do not remove existing rows) → recalculate Summary with combined old+new counts
-   - **If not exists**: Create with `version: 1`
+3. **Build the spec doc** following the template in `_shared/spec-doc-generator.md` (for API, modules → resource groups, Target Class → Endpoint, Target Method(s) → HTTP Methods)
 
-4. **Write the spec doc** using the template (for API tests, Target Class/Target Method map to Endpoint Path/HTTP Method).
+4. **Check for existing spec doc** (same date + same layer):
+   - **If exists**: Read → increment `**Version**` → **APPEND** within each resource group's subsection
+   - **If not exists**: Create with `**Version**: 1`
 
-5. **Update the wizard file** `docs/khufu/test-cases.md` — update the row for today's API generation only.
+5. **Write the spec doc** and **update the wizard file** `docs/khufu/test-cases.md`.
 
 ### Step 11: Report Summary
 

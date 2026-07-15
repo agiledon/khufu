@@ -295,22 +295,23 @@ mkdir -p docs/khufu/e2e
 > Only create the `e2e/` subdirectory — do NOT create subdirectories for other test types (ut/, it/, api/). Other types will create their own when they run.
 
 1. **Collect data** from Steps 10 (test execution) and 11 (scenario coverage):
-   - Test execution results: which tests passed/failed/skipped
+   - User journey inventory and test files generated
+   - Test execution results: pass/fail/skip per journey
    - Scenario coverage matrix: user journey, priority, status
-   - Framework info: Playwright version (or Qt Test version for Qt projects)
-   - Test case details: for each generated test — Test File, Test Scenario (User Journey), Target Pages, Status
+   - Framework info: Playwright version (or Qt Test)
+   - Test case details grouped by feature area: Test File, User Journey (Target), Page Flow(s), Status
 
 2. **Determine the spec doc path**:
    - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
    - Path: `docs/khufu/e2e/<YYYY-MM-DD>-e2e-test-cases.md`
 
-3. **Check for existing spec doc** (same date + same layer):
-   - **If today's spec doc exists**: Read → increment version → **APPEND new test cases** (do not remove existing rows) → recalculate Summary with combined old+new counts
-   - **If not exists**: Create with `version: 1`
+3. **Build the spec doc** following the template in `_shared/spec-doc-generator.md` (for E2E, modules → feature areas, Target Class → User Journey, Target Method(s) → Page Flow(s))
 
-4. **Write the spec doc** using the template (for E2E tests, Target Class/Target Method map to User Journey/Page Flow).
+4. **Check for existing spec doc** (same date + same layer):
+   - **If exists**: Read → increment `**Version**` → **APPEND** within each feature area's subsection
+   - **If not exists**: Create with `**Version**: 1`
 
-5. **Update the wizard file** `docs/khufu/test-cases.md` — update the row for today's E2E generation only.
+5. **Write the spec doc** and **update the wizard file** `docs/khufu/test-cases.md`.
 
 ### Step 13: Report Summary
 
