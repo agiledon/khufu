@@ -66,13 +66,13 @@ Read the following shared modules to configure the test generation environment:
 
 **Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
 
-1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
-2. Parse all referenced API spec docs (e.g., `api/2026-07-*.md`)
-3. Extract already-covered endpoints (Target Class + Target Method) from the Test Cases table (filter to rows with Status ✅)
-4. Build a skip list of API endpoints that already have passing tests
+1. **Glob for ALL API spec docs**: `docs/khufu/api/*-api-test-cases.md` (all dates, not just today)
+2. **Parse every spec doc** — extract endpoint (Target Class) + HTTP method (Target Method) + Status from ALL rows
+3. **Build a comprehensive skip list** across ALL dates of already-tested API endpoints
+4. **Cross-reference with discovered endpoints** to produce a Coverage Gap Analysis
 5. Hold this skip list for merging with spec-sync results in Step 3.2
 
-**If spec system is disabled or the wizard file doesn't exist**: Skip this step.
+**If no spec docs exist** (first ever run): return empty skip list and proceed normally.
 
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
@@ -107,7 +107,21 @@ Follow the module's workflow to build a **skip list**:
    - Build the skip list
    - **Warn**: File-based fallback is less precise; recommend enabling spec system
 
-4. **Feed skip list forward**: The skip list is consumed by Step 5 (generation skips already-covered endpoints). In parallel mode, each sub-agent receives the skip list for its assigned endpoint group.
+4. **Feed skip list forward**: The merged skip list is consumed by Step 5.
+
+#### 3.3 Early Exit Gate — Fully Covered
+
+**After merging skip lists**, compare against all discovered API endpoints:
+
+- **If ALL endpoints are fully covered** → **Exit immediately**:
+  ```
+  ✓ All API endpoints are already covered by existing tests. No new tests needed.
+    - <N> spec docs scanned across <M> dates
+    - <X> endpoints — all covered
+    To regenerate tests, delete the relevant spec docs or test files first.
+  ```
+
+- **If gaps exist** → Continue to Step 4. Focus generation ONLY on uncovered endpoints.
 
 **Key rule**: An API test that already exists and is tracked MUST NOT be regenerated.
 
@@ -279,11 +293,13 @@ mkdir -p docs/khufu/api
    - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
    - Path: `docs/khufu/api/<YYYY-MM-DD>-api-test-cases.md`
 
-3. **Check for existing spec doc** and merge if needed.
+3. **Check for existing spec doc** (same date + same layer):
+   - **If today's spec doc exists**: Read → increment version → **APPEND new test cases** (do not remove existing rows) → recalculate Summary with combined old+new counts
+   - **If not exists**: Create with `version: 1`
 
-4. **Write the spec doc** using the template (for API tests, the Target Class/Target Method columns map to Endpoint Path/HTTP Method).
+4. **Write the spec doc** using the template (for API tests, Target Class/Target Method map to Endpoint Path/HTTP Method).
 
-5. **Update the wizard file** `docs/khufu/test-cases.md`.
+5. **Update the wizard file** `docs/khufu/test-cases.md` — update the row for today's API generation only.
 
 ### Step 11: Report Summary
 

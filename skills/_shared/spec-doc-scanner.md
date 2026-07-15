@@ -18,96 +18,130 @@ Shared module for scanning the execution record spec docs (`docs/khufu/`) BEFORE
 
 Read `khufu.yaml` and check:
 
-1. `spec.enabled` — if `false` or absent, skip (nothing to scan)
+1. `spec.enabled` — if `false` or absent, skip (return empty skip list)
 2. `spec.docsDirectory` — the base directory for spec docs. Default: `docs/khufu/`
 
 If spec is disabled, return an empty skip list and fall through to `spec-sync.md`.
 
-### Step 2: Read the Wizard File
+### Step 2: Discover All Spec Docs for the Current Layer
 
-Read `<docsDirectory>/test-cases.md` (e.g., `docs/khufu/test-cases.md`).
+**Glob for ALL spec docs** in the current layer's subdirectory. Do NOT rely solely on the wizard file — spec docs may exist even if the wizard hasn't been updated.
 
-If the wizard file does **not exist** (first ever run), there are no previous spec docs to scan. Return an empty skip list.
+```bash
+# Glob pattern
+<docsDirectory>/<layer>/*-<layer>-test-cases.md
+```
 
-If the wizard file exists, parse it:
+Example for UT layer:
+```
+docs/khufu/ut/2026-07-13-ut-test-cases.md
+docs/khufu/ut/2026-07-14-ut-test-cases.md
+```
 
-1. **Extract the "Recent Generations" table**:
-   - Columns: Date, Type, File, Tests, Passed, Failed
-   - Each row links to a spec doc file via the `File` column
+If **no spec docs found** (first ever run for this layer), return an empty skip list.
 
-2. **Filter by current layer**: Only read spec docs matching the current test layer (`ut`, `it`, `api`, `e2e`).
+### Step 3: Parse ALL Spec Docs (Not Just Today's)
 
-3. **Extract the "Coverage Overview" table** (optional, for informational context)
+**For every spec doc found in Step 2** (all dates, not just today):
 
-### Step 3: Parse Referenced Spec Docs
-
-For each spec doc file referenced in the wizard (filtered to current layer):
-
-1. **Read the spec doc file** (e.g., `docs/khufu/ut/2026-07-13-ut-test-cases.md`)
+1. **Read the spec doc file**
 2. **Extract the "Test Cases" table**:
    - Columns: #, Test Class, Test Method, Target Class, Target Method, Status
-   - Filter to rows where `Status` is `✅` (passed)
-3. **Build covered-item set**:
+   - **Include ALL rows regardless of Status** — even ❌ and ⏭️ entries represent existing tests that should not be regenerated
+3. **Build covered-item set** for each row:
    ```
    {
      targetClass: "UserService",
      targetMethod: "createUser",
      testClass: "UserServiceTest",
      testMethod: "ShouldCreateUserWhenValidInputGiven",
+     status: "✅",
      specDoc: "ut/2026-07-13-ut-test-cases.md"
    }
    ```
 
-### Step 4: Build Skip List
+### Step 4: Build Comprehensive Skip List
 
-Compile all covered items into a skip list:
+Compile all covered items from ALL spec docs into a single skip list, deduplicating by `targetClass + targetMethod`:
 
 ```markdown
 ## Spec Doc Skip List
 
-Source: docs/khufu/ execution record specs
+Source: docs/khufu/ execution record specs (all dates)
 
-| Target Class | Target Method | Covered By | Spec Doc |
-|-------------|--------------|-----------|-----------|
-| UserService | createUser | UserServiceTest.ShouldCreateUser... | ut/2026-07-13-ut-test-cases.md |
-| OrderService | calculateTotal | OrderServiceTest.ShouldCalc... | ut/2026-07-12-ut-test-cases.md |
+| Target Class | Target Method | Covered By | Status | Spec Doc |
+|-------------|--------------|-----------|--------|-----------|
+| UserService | createUser | UserServiceTest.ShouldCreateUser... | ✅ | ut/2026-07-13-ut-test-cases.md |
+| UserService | createUser | UserServiceTest.ShouldThrowWhen... | ✅ | ut/2026-07-13-ut-test-cases.md |
+| UserService | deleteUser | UserServiceTest.ShouldDelete... | ✅ | ut/2026-07-13-ut-test-cases.md |
+| OrderService | calculateTotal | OrderServiceTest.ShouldCalc... | ✅ | ut/2026-07-14-ut-test-cases.md |
 ```
 
-**For code-based mode**: The skip list maps to source files and methods. When reading a source file for generation, skip any method that appears in the skip list.
+The dedup rule: if the same `targetClass + targetMethod` appears in multiple spec docs, keep ALL test entries (they test different behaviors of the same method). The skip applies at the **test method** level, not just the target method level.
 
-**For spec-based mode**: Compare new spec scenarios against the skip list. If the same target class + method combination appears, skip that scenario.
+### Step 5: Determine Coverage Completeness
 
-### Step 5: Merge with spec-sync Skip List
+After building the skip list, compare against the source code to determine if there is any uncovered code:
 
-After `spec-sync.md` runs (Phase 2 of spec-sync), merge the two skip lists:
+1. **Discover source files**: Use Glob to find all source files in the project
+2. **Extract public methods**: For each source file, identify public methods (the testable surface)
+3. **Cross-reference with skip list**: Check each public method against the skip list
 
-1. Combine all entries from both sources
-2. Deduplicate by `targetClass + targetMethod` (keep the entry with the most recent spec doc)
-3. Report the merged skip list to the generation step
+Produce a **coverage gap analysis**:
 
 ```markdown
-## Merged Skip List
+## Coverage Gap Analysis
 
-Source: docs/khufu/ (spec docs) + specs/ (planning specs)
-
-| Target Class | Target Method | Covered By | Source |
-|-------------|--------------|-----------|--------|
-| UserService | createUser | UserServiceTest | docs/khufu/ut/2026-07-13-... |
-| OrderService | calculateTotal | OrderServiceTest | specs/order/spec.v1.md |
+| Source File | Total Methods | Already Covered | Not Covered | Action |
+|-------------|--------------|-----------------|-------------|--------|
+| UserService.cpp | 5 | 5 | 0 | SKIP |
+| OrderService.cpp | 8 | 3 | 5 | GENERATE |
+| PaymentService.cpp | 4 | 0 | 4 | GENERATE |
+| ConfigLoader.cpp | 2 | 2 | 0 | SKIP |
 ```
 
-### Step 6: Report
+### Step 6: Decide — Continue or Exit Early
 
-Include the skip list in the generation report under a "Pre-Generation Dedup" section:
+**If ALL methods across ALL source files are already covered** (Not Covered = 0 for every file):
+
+→ Signal **FULLY_COVERED**. The caller (SKILL.md) should skip all remaining steps and report:
+
+```
+✓ All code is already covered by existing tests.
+  - <N> spec docs scanned across <M> dates
+  - <X> source files, <Y> methods — all covered
+  - No new tests needed.
+
+  To regenerate tests, delete the relevant spec docs or test files first.
+```
+
+**If some methods are NOT covered**:
+
+→ Continue to Step 7. Only generate tests for the uncovered methods.
+
+### Step 7: Merge with spec-sync Skip List
+
+After `spec-sync.md` runs, merge both skip lists:
+
+1. Combine all entries from both sources
+2. Deduplicate by `targetClass + targetMethod`
+3. The merged skip list covers all previously generated tests (from both execution records and planning specs)
+
+### Step 8: Report
+
+Include in the generation report:
 
 ```markdown
 ### Pre-Generation Dedup
 
-| Source | Entries Scanned | Already Covered | New to Generate |
-|--------|----------------|-----------------|-----------------|
-| docs/khufu/ (execution records) | 15 | 8 | 7 |
-| specs/ (planning specs) | 12 | 3 | 9 |
-| **Merged Total** | — | **10** | **12** |
+| Source | Spec Docs Scanned | Dates Covered | Already Tested Methods | New Methods to Cover |
+|--------|-------------------|---------------|----------------------|---------------------|
+| docs/khufu/ut/ (execution records) | 3 | 2026-07-13, 2026-07-14 | 12 | — |
+| specs/ (planning specs) | 2 | — | 3 | — |
+| **Merged Total** | — | — | **13** | **5** |
+
+**Source files fully covered (skipped):** UserService.cpp, ConfigLoader.cpp
+**Source files with gaps:** OrderService.cpp (5 methods), PaymentService.cpp (4 methods)
 ```
 
 ## Language-Agnostic Patterns for Spec Doc Parsing
@@ -127,30 +161,3 @@ When matching target classes across languages, normalize by:
 - Removing package/namespace prefixes
 - Converting snake_case ↔ camelCase ↔ PascalCase variants as needed
 - Case-insensitive comparison as fallback
-
-## Wizard File Format (for reference)
-
-The wizard file at `docs/khufu/test-cases.md` follows this format:
-
-```markdown
----
-version: 3
-created: 2026-07-10
-updated: 2026-07-13T14:30:00+08:00
----
-
-# Khufu Test Cases Index
-
-## Recent Generations
-
-| Date | Type | File | Tests | Passed | Failed |
-|------|------|------|-------|--------|--------|
-| 2026-07-13 | UT | [2026-07-13-ut-test-cases.md](ut/2026-07-13-ut-test-cases.md) | 25 | 23 | 2 |
-| 2026-07-13 | API | [2026-07-13-api-test-cases.md](api/2026-07-13-api-test-cases.md) | 15 | 12 | 3 |
-
-## Coverage Overview
-
-| Type | Date | Line % | Branch % | Report |
-|------|------|--------|----------|--------|
-| UT | 2026-07-13 | 78% | 65% | [report](ut/coverage/) |
-```

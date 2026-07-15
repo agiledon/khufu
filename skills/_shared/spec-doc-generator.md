@@ -62,13 +62,18 @@ date +%Y-%m-%d
 Use **Read** to check if the spec doc file already exists.
 
 **If the file EXISTS** (same date, same layer):
+
+> ⚠️ **CRITICAL: APPEND mode, not OVERWRITE.** Existing test cases in the spec doc represent previously generated tests. They MUST be preserved. Only ADD new test cases.
+
 1. Read the existing file
 2. Parse the YAML frontmatter → extract `version`
 3. Increment version: `newVersion = oldVersion + 1`
-4. Parse the existing Test Cases table
-5. Merge: keep existing test cases + add new ones (dedup by Test Class + Test Method)
-6. Recalculate Summary statistics
-7. Update Coverage Statistics with latest data
+4. Parse the existing Test Cases table — **preserve ALL existing rows**
+5. **APPEND new test cases** at the end of the Test Cases table with continuing row numbers (do NOT modify, reorder, or delete existing rows):
+   - Dedup by `Test Class + Test Method` — if a new test case matches an existing row (same class + same method), keep the existing row and update its Status to the latest result
+   - If no match, append as a new row with the next sequential number
+6. **Recalculate Summary statistics**: Total = old rows + new unique rows, Passed/Failed/Skipped = recount across ALL rows
+7. Update Coverage Statistics with the latest coverage data (always use current measurement)
 
 **If the file does NOT exist** (first run today for this layer):
 1. Create with `version: 1`

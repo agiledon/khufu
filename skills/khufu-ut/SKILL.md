@@ -71,13 +71,13 @@ Read the following shared modules to configure the test generation environment:
 
 **Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
 
-1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
-2. Parse all referenced UT spec docs (e.g., `ut/2026-07-*.md`)
-3. Extract already-covered Target Class + Target Method pairs from the Test Cases table (filter to rows with Status ✅)
-4. Build a skip list of source files/methods that already have passing tests
+1. **Glob for ALL UT spec docs**: `docs/khufu/ut/*-ut-test-cases.md` (all dates, not just today)
+2. **Parse every spec doc** — extract Test Class, Test Method, Target Class, Target Method, Status from ALL rows in every Test Cases table
+3. **Build a comprehensive skip list** of all already-tested target classes and methods (across ALL dates)
+4. **Cross-reference with source code** to produce a Coverage Gap Analysis — identify which source files/methods are NOT yet covered
 5. Hold this skip list for merging with spec-sync results in Step 3.2
 
-**If spec system is disabled or the wizard file doesn't exist**: Skip this step — this is the first run, nothing to dedup.
+**If no spec docs exist** (first ever run): return empty skip list and proceed normally.
 
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
@@ -87,28 +87,24 @@ Read the following shared modules to configure the test generation environment:
 
 #### 3.2 Spec Sync — Incremental Check (Cross-Run)
 
-**Read `_shared/spec-sync.md`.** Before generating tests, check if previous runs have already produced tests. This prevents regenerating the same tests on repeated `khufu-ut` executions.
+**Read `_shared/spec-sync.md`.** Follow its workflow to build a skip list from planning specs and file fallback. Merge with the spec-doc-scanner skip list from Step 3.0.
 
-Follow the module's workflow to build a **skip list**:
+#### 3.3 Early Exit Gate — Fully Covered
 
-1. **Check spec system status**: Read `khufu.yaml` → `spec.enabled`.
+**After merging skip lists**, compare the merged coverage against ALL source files in the project:
 
-2. **If spec enabled AND spec files exist** (Phase 2):
-   - Glob for `specs/**/spec.v*.md`
-   - Parse each spec file for test cases with `status: implemented` AND `Test File:` paths
-   - Filter to `UT-` prefixed cases only
-   - Map `Source File:` fields back to source files → these are already covered
-   - Build the skip list
+- **If ALL source files are fully covered** (every public method has at least one test in the skip list):
+  → **Exit immediately** with the message:
+  ```
+  ✓ All code is already covered by existing unit tests. No new tests needed.
+    - <N> spec docs scanned across <M> dates
+    - <X> source files, <Y> methods — all covered
+    To regenerate tests, delete the relevant spec docs or test files first.
+  ```
+  Do NOT proceed to Step 4 or beyond.
 
-3. **If spec disabled OR no spec files exist** (Phase 3 — file-based fallback):
-   - Glob for existing test files: `<test-output-dir>/**/*Test*.java` (or language-equivalent pattern)
-   - Infer covered source files: `FooTest.java` → `Foo.java`
-   - Build the skip list from existing test files
-   - **Warn**: File-based fallback is less precise; recommend enabling spec system
-
-4. **Feed skip list forward**: The skip list is consumed by Step 4 (module discovery filters already-covered modules) and Step 5 (generation skips already-covered source files).
-
-**Key rule**: A test that already exists and is tracked in a spec (or detected via file fallback) MUST NOT be regenerated. If the user wants regeneration, they must delete the existing test file first.
+- **If some files/methods are NOT covered**:
+  → Continue to Step 4. Use the Coverage Gap Analysis to focus generation ONLY on uncovered methods. Skip source files that are already fully covered.
 
 ### Step 4: Module Discovery & Testability Assessment
 
@@ -454,8 +450,8 @@ mkdir -p docs/khufu/ut
    - Path: `docs/khufu/ut/<YYYY-MM-DD>-ut-test-cases.md`
 
 3. **Check for existing spec doc** (same date + same layer):
-   - If exists: Read → increment version → merge test cases → recalculate summary
-   - If not exists: Create with `version: 1`
+   - **If today's spec doc exists**: Read it → increment version in frontmatter → **APPEND new test cases** to the existing Test Cases table (do NOT remove or modify existing rows) → recalculate Summary (total/passed/failed/skipped counts across all rows, old + new) → keep the existing Coverage Statistics section but update with latest coverage data
+   - **If not exists**: Create with `version: 1`
 
 4. **Write the spec doc** using the template (Summary + Test Cases table + Coverage Statistics + Metadata).
 

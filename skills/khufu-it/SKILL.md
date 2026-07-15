@@ -70,13 +70,13 @@ Read the following shared modules to configure the test generation environment:
 
 **Read `_shared/spec-doc-scanner.md`** and follow its workflow to scan `docs/khufu/` execution record specs:
 
-1. Read the wizard file `docs/khufu/test-cases.md` (if it exists)
-2. Parse all referenced IT spec docs (e.g., `it/2026-07-*.md`)
-3. Extract already-covered Target Class + Target Method pairs from the Test Cases table (filter to rows with Status ✅)
-4. Build a skip list of vertical slices/components that already have passing integration tests
+1. **Glob for ALL IT spec docs**: `docs/khufu/it/*-it-test-cases.md` (all dates, not just today)
+2. **Parse every spec doc** — extract Test Class, Test Method, Target Class, Target Method, Status from ALL rows
+3. **Build a comprehensive skip list** across ALL dates of already-tested vertical slices and components
+4. **Cross-reference with source code** to produce a Coverage Gap Analysis
 5. Hold this skip list for merging with spec-sync results in Step 3.2
 
-**If spec system is disabled or the wizard file doesn't exist**: Skip this step.
+**If no spec docs exist** (first ever run): return empty skip list and proceed normally.
 
 #### 3.1 Pyramid Dedup (Cross-Layer)
 
@@ -113,7 +113,21 @@ Follow the module's workflow to build a **skip list**:
    - Build the skip list
    - **Warn**: File-based fallback is less precise; recommend enabling spec system
 
-4. **Feed skip list forward**: The skip list is consumed by Step 6 (generation skips already-covered components/vertical slices). In parallel mode, each sub-agent receives the skip list for its assigned modules.
+4. **Feed skip list forward**: The skip list is consumed by Step 6 (generation skips already-covered components/vertical slices).
+
+#### 3.3 Early Exit Gate — Fully Covered
+
+**After merging skip lists**, compare against all discoverable components/vertical slices:
+
+- **If ALL components are fully covered** → **Exit immediately**:
+  ```
+  ✓ All integration points are already covered by existing tests. No new tests needed.
+    - <N> spec docs scanned across <M> dates
+    - <X> vertical slices — all covered
+    To regenerate tests, delete the relevant spec docs or test files first.
+  ```
+
+- **If gaps exist** → Continue to Step 4. Focus generation ONLY on uncovered vertical slices.
 
 **Key rule**: An integration test that already exists and is tracked MUST NOT be regenerated.
 
@@ -335,11 +349,13 @@ mkdir -p docs/khufu/it
    - Read `khufu.yaml` → `spec.docsDirectory` (default: `docs/khufu/`)
    - Path: `docs/khufu/it/<YYYY-MM-DD>-it-test-cases.md`
 
-3. **Check for existing spec doc** and merge if needed.
+3. **Check for existing spec doc** (same date + same layer):
+   - **If today's spec doc exists**: Read → increment version → **APPEND new test cases** (do not remove existing rows) → recalculate Summary with combined old+new counts → update Coverage Statistics with latest data
+   - **If not exists**: Create with `version: 1`
 
 4. **Write the spec doc** using the template.
 
-5. **Update the wizard file** `docs/khufu/test-cases.md`.
+5. **Update the wizard file** `docs/khufu/test-cases.md` — update the row for today's IT generation with recalculated counts. Do NOT modify rows for other test types.
 
 ### Step 12: Report Summary
 
