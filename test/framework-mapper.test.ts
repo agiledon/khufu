@@ -3,7 +3,9 @@ import {
   getFrameworks,
   getAllFrameworksForLanguage,
   getCoverageTool,
+  getCoverageTools,
   COVERAGE_TOOL_MAP,
+  COVERAGE_TOOL_OPTIONS,
 } from '../src/detection/framework-mapper.js';
 import type { PyramidLevel } from '../src/registry/types.js';
 
@@ -161,18 +163,47 @@ describe('FrameworkMapper', () => {
 
     it('should return coverage tool for c++', () => {
       expect(getCoverageTool('c++')).toBeDefined();
-      expect(getCoverageTool('c++')!.name).toBe('gcov + lcov');
+      expect(getCoverageTool('c++')!.name).toContain('gcov + lcov');
     });
 
     it('should normalize cpp for coverage tools', () => {
       expect(getCoverageTool('cpp')).toBeDefined();
-      expect(getCoverageTool('cpp')!.name).toBe('gcov + lcov');
+      expect(getCoverageTool('cpp')!.name).toContain('gcov + lcov');
     });
 
     it('COVERAGE_TOOL_MAP should export all expected languages', () => {
       for (const lang of supportedLanguages) {
         expect(COVERAGE_TOOL_MAP[lang], `COVERAGE_TOOL_MAP should have ${lang}`).toBeDefined();
       }
+    });
+
+    it('C++ COVERAGE_TOOL_OPTIONS should have at least 4 OS/toolchain options', () => {
+      const options = COVERAGE_TOOL_OPTIONS['c++'];
+      expect(options).toBeDefined();
+      expect(options.length).toBeGreaterThanOrEqual(4);
+      const names = options.map(o => o.name);
+      expect(names.some(n => n.includes('Linux/GCC'))).toBe(true);
+      expect(names.some(n => n.includes('gcovr'))).toBe(true);
+      expect(names.some(n => n.includes('Windows/MSVC'))).toBe(true);
+      expect(names.some(n => n.includes('llvm-cov'))).toBe(true);
+    });
+
+    it('getCoverageTools should return multiple options for c++', () => {
+      const options = getCoverageTools('c++');
+      expect(options.length).toBeGreaterThanOrEqual(4);
+      expect(options[0].runCommand).toBeTruthy();
+      expect(options[0].configExample).toBeTruthy();
+    });
+
+    it('getCoverageTools should return single option for non-c++ languages', () => {
+      const javaOptions = getCoverageTools('java');
+      expect(javaOptions.length).toBe(1);
+      expect(javaOptions[0].name).toBe('JaCoCo');
+    });
+
+    it('getCoverageTools should handle cpp alias', () => {
+      const options = getCoverageTools('cpp');
+      expect(options.length).toBeGreaterThanOrEqual(4);
     });
 
     it('each coverage tool should have valid recommended thresholds', () => {

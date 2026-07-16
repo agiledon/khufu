@@ -135,6 +135,35 @@ Use **AskUserQuestion** to let the user choose. Present the most relevant option
 
 ---
 
+### Coverage Tools
+
+For most languages, a single standard coverage tool is used (JaCoCo for Java, pytest-cov for Python, Istanbul for TypeScript, etc.).
+
+**C++ coverage tools — OS-dependent, user must choose:**
+
+When the detected language is C++, use **AskUserQuestion** to present the options based on the user's OS:
+
+**Question**: "Select C++ coverage tool based on your operating system and toolchain:"
+
+| Option | OS | Toolchain | Best For |
+|--------|----|-----------|----------|
+| **gcov + lcov** (Recommended for Linux) | Linux | GCC | Standard Linux CI/CD; generates LCOV/HTML/Cobertura |
+| **gcovr** | Linux / Windows | GCC / MinGW | Cross-platform GCC projects; better formatting than lcov |
+| **OpenCppCoverage** (Recommended for Windows) | Windows | MSVC | Native Windows CI/CD; no GCC dependency |
+| **llvm-cov + llvm-profdata** | Linux / macOS / Windows | Clang | Projects using Clang compiler; cross-platform |
+
+**Decision Guide:**
+| OS | Compiler | Recommended Tool |
+|----|---------|-----------------|
+| Linux | GCC | gcov + lcov |
+| Linux | Clang | llvm-cov + llvm-profdata |
+| Windows | MSVC | OpenCppCoverage |
+| Windows | MinGW/GCC | gcovr |
+| macOS | Clang (default) | llvm-cov + llvm-profdata |
+| macOS | GCC | gcovr |
+
+---
+
 ### 3. Confirm Selection
 
 After the user selects a framework, confirm and store the selection.

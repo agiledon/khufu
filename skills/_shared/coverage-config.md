@@ -120,16 +120,50 @@ collectCoverageFrom: [
 ],
 ```
 
-**C++ (xmake) — `xmake.lua`:**
+**C++ (xmake) — Coverage tool selection by OS:**
+
+C++ coverage tools are OS and toolchain dependent. Use **AskUserQuestion** to let the user select:
+
+**Option 1: gcov + lcov (Linux/GCC) — `xmake.lua`:**
 ```lua
--- Enable coverage mode (adds --coverage flag to compiler and linker)
+-- GCC toolchain on Linux
 add_rules("mode.coverage")
 
--- Build with: xmake f -m coverage && xmake build
+-- Build: xmake f --toolchain=gcc -m coverage && xmake build
 -- Run tests: xmake run <test_target>
--- Generate report:
---   lcov --capture --directory build/ --output-file coverage.info
---   genhtml coverage.info --output-directory coverage_report/
+-- Report: lcov --capture --directory build/ --output-file coverage.info
+--         genhtml coverage.info --output-directory coverage_report/
+```
+
+**Option 2: gcovr (cross-platform GCC) — `xmake.lua`:**
+```lua
+-- GCC toolchain, works on Linux and Windows MinGW
+add_rules("mode.coverage")
+
+-- Build: xmake f --toolchain=gcc -m coverage && xmake build && xmake run <test_target>
+-- Report: gcovr -r . --html-details coverage_report/index.html
+--         gcovr -r . --xml -o coverage.xml
+--         gcovr -r . --json -o coverage.json
+```
+
+**Option 3: OpenCppCoverage (Windows/MSVC) — `xmake.lua`:**
+```lua
+-- MSVC toolchain on Windows (no add_rules needed for coverage)
+-- Build: xmake f --toolchain=msvc -m debug && xmake build
+-- Run tests with coverage:
+--   OpenCppCoverage --sources src/ --export_type cobertura:coverage.xml -- build/<test_target>.exe
+--   OpenCppCoverage --sources src/ --export_type html:coverage_report -- build/<test_target>.exe
+```
+
+**Option 4: llvm-cov + llvm-profdata (Clang, cross-platform) — `xmake.lua`:**
+```lua
+-- Clang toolchain, works on Linux, macOS, and Windows
+add_rules("mode.coverage")
+
+-- Build: xmake f --toolchain=clang -m coverage && xmake build && xmake run <test_target>
+-- Report: llvm-profdata merge -sparse default.profraw -o coverage.profdata
+--         llvm-cov show <test_target> -instr-profile=coverage.profdata -format=html -output-dir=coverage_report/
+--         llvm-cov export <test_target> -instr-profile=coverage.profdata -format=lcov > coverage.lcov
 ```
 
 **TypeScript (Vitest) — `vitest.config.ts`:**

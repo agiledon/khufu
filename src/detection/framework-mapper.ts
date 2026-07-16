@@ -209,12 +209,12 @@ module.exports = {
   },
 
   'c++': {
-    name: 'gcov + lcov',
+    name: 'gcov + lcov (Linux/GCC)',
     language: 'c++',
     description:
-      'Standard GNU coverage toolchain for C/C++. gcov generates coverage data, lcov converts it to HTML reports. Integrated with xmake via coverage mode.',
+      'Standard GNU coverage toolchain for C/C++ on Linux with GCC. gcov generates coverage data, lcov converts it to HTML reports. Integrated with xmake via coverage mode.',
     runCommand: 'xmake f -m coverage && xmake build && xmake run <test_target>',
-    configExample: `-- xmake.lua coverage configuration
+    configExample: `-- xmake.lua coverage configuration (GCC on Linux)
 add_rules("mode.coverage")
 -- Coverage mode adds --coverage flag to compiler and linker
 -- Build: xmake f -m coverage && xmake build
@@ -229,6 +229,100 @@ add_rules("mode.coverage")
       it: { line: 60, branch: 50 },
     },
   },
+};
+
+/**
+ * Map of language -> multiple coverage tool options.
+ * For languages with only one tool, the array has one entry.
+ * For C++, multiple options are provided for different OS/toolchain combos.
+ */
+export const COVERAGE_TOOL_OPTIONS: Record<string, CoverageTool[]> = {
+  'c++': [
+    {
+      name: 'gcov + lcov (Linux/GCC)',
+      language: 'c++',
+      description:
+        'Standard GNU coverage toolchain on Linux. gcov generates raw coverage data, lcov converts to HTML/LCOV reports. Requires GCC compiler. Best for Linux CI/CD pipelines.',
+      runCommand: 'xmake f -m coverage && xmake build && xmake run <test_target>',
+      configExample: `-- xmake.lua: GCC + gcov/lcov (Linux)
+add_rules("mode.coverage")
+-- Ensure GCC toolchain:
+--   xmake f --toolchain=gcc -m coverage
+-- Build and run tests:
+--   xmake build && xmake run <test_target>
+-- Generate report:
+--   lcov --capture --directory build/ --output-file coverage.info
+--   genhtml coverage.info --output-directory coverage_report/
+`,
+      formats: ['lcov', 'html', 'cobertura', 'json'],
+      recommendedThresholds: {
+        ut: { line: 80, branch: 70 },
+        it: { line: 60, branch: 50 },
+      },
+    },
+    {
+      name: 'gcovr (Linux/GCC, cross-platform)',
+      language: 'c++',
+      description:
+        'Python-based wrapper around gcov with better output formatting. Supports Cobertura XML, HTML, and JSON reports. Works on both Linux and Windows with GCC/MinGW.',
+      runCommand: 'xmake f -m coverage && xmake build && xmake run <test_target> && gcovr -r . --html-details coverage_report/index.html',
+      configExample: `-- xmake.lua: GCC + gcovr (cross-platform)
+add_rules("mode.coverage")
+-- Build and run tests:
+--   xmake f -m coverage && xmake build && xmake run <test_target>
+-- Generate report with gcovr:
+--   gcovr -r . --html-details coverage_report/index.html
+--   gcovr -r . --xml -o coverage.xml
+--   gcovr -r . --json -o coverage.json
+`,
+      formats: ['html', 'xml', 'json', 'txt'],
+      recommendedThresholds: {
+        ut: { line: 80, branch: 70 },
+        it: { line: 60, branch: 50 },
+      },
+    },
+    {
+      name: 'OpenCppCoverage (Windows/MSVC)',
+      language: 'c++',
+      description:
+        'Native Windows coverage tool for MSVC-compiled C++ code. No GCC dependency. Generates HTML and Cobertura XML reports. Best for Windows/MSVC CI/CD pipelines.',
+      runCommand: 'OpenCppCoverage --sources <src_dir> --export_type cobertura:coverage.xml -- <test_exe>',
+      configExample: `-- xmake.lua: MSVC + OpenCppCoverage (Windows)
+-- Build with debug info:
+--   xmake f -m debug && xmake build
+-- Run tests with coverage:
+--   OpenCppCoverage --sources src/ --export_type cobertura:coverage.xml -- build/<test_target>.exe
+--   OpenCppCoverage --sources src/ --export_type html:coverage_report -- build/<test_target>.exe
+`,
+      formats: ['cobertura', 'html', 'xml'],
+      recommendedThresholds: {
+        ut: { line: 80, branch: 70 },
+        it: { line: 60, branch: 50 },
+      },
+    },
+    {
+      name: 'llvm-cov + llvm-profdata (cross-platform/Clang)',
+      language: 'c++',
+      description:
+        'LLVM/Clang native coverage toolchain. Works on Linux, macOS, and Windows. Generates HTML, JSON, and LCOV-compatible reports. Best for projects using Clang compiler.',
+      runCommand: 'xmake f --toolchain=clang -m coverage && xmake build && xmake run <test_target>',
+      configExample: `-- xmake.lua: Clang + llvm-cov (cross-platform)
+add_rules("mode.coverage")
+-- Use Clang toolchain:
+--   xmake f --toolchain=clang -m coverage
+--   xmake build && xmake run <test_target>
+-- Generate report with llvm-cov:
+--   llvm-profdata merge -sparse default.profraw -o coverage.profdata
+--   llvm-cov show <test_target> -instr-profile=coverage.profdata -format=html -output-dir=coverage_report/
+--   llvm-cov export <test_target> -instr-profile=coverage.profdata -format=lcov > coverage.lcov
+`,
+      formats: ['html', 'lcov', 'json', 'txt'],
+      recommendedThresholds: {
+        ut: { line: 80, branch: 70 },
+        it: { line: 60, branch: 50 },
+      },
+    },
+  ],
 };
 
 /**
@@ -805,11 +899,27 @@ export function getAllFrameworksForLanguage(language: string): Record<PyramidLev
 }
 
 /**
- * Get the recommended coverage tool for a given language.
+ * Get the recommended (default) coverage tool for a given language.
  */
 export function getCoverageTool(language: string): CoverageTool | undefined {
   const normalizedLang = mapLanguage(language);
   return COVERAGE_TOOL_MAP[normalizedLang];
+}
+
+/**
+ * Get all available coverage tool options for a given language.
+ * For most languages, returns a single-element array.
+ * For C++, returns multiple options grouped by OS/toolchain.
+ */
+export function getCoverageTools(language: string): CoverageTool[] {
+  const normalizedLang = mapLanguage(language);
+  const options = COVERAGE_TOOL_OPTIONS[normalizedLang];
+  if (options && options.length > 0) {
+    return options;
+  }
+  // Fall back to the single tool in COVERAGE_TOOL_MAP
+  const single = COVERAGE_TOOL_MAP[normalizedLang];
+  return single ? [single] : [];
 }
 
 /**
