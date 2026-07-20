@@ -11,6 +11,7 @@ dist/
 # --- Khufu internal state ---
 .khufu/
 .claude/
+.claude-plugin/
 
 # --- Test coverage output ---
 coverage/
