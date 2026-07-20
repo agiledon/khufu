@@ -42,6 +42,9 @@ export function showWelcome(): void {
   console.log(chalk.cyan('    /khufu-api') + '  — API / Contract Tests');
   console.log(chalk.cyan('    /khufu-e2e') + '  — End-to-End Tests (the tip)');
   console.log();
+  console.log(chalk.white('  Establish project constraint assets (Harness Engineering):'));
+  console.log(chalk.cyan('    /khufu-harness') + ' — AGENTS.md, Constitutions.md, docs/harness, docs/knowledge, docs/prd');
+  console.log();
 }
 
 /**
