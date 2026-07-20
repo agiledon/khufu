@@ -4,6 +4,8 @@ import { claudeTool } from './tools/claude.js';
 import { cursorTool } from './tools/cursor.js';
 import { opencodeTool } from './tools/opencode.js';
 import { codexTool } from './tools/codex.js';
+import { qoderTool } from './tools/qoder.js';
+import { traeTool } from './tools/trae.js';
 
 export class DefaultToolRegistry implements IToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
@@ -14,6 +16,8 @@ export class DefaultToolRegistry implements IToolRegistry {
     this.register(cursorTool);
     this.register(opencodeTool);
     this.register(codexTool);
+    this.register(qoderTool);
+    this.register(traeTool);
   }
 
   list(): ToolDefinition[] {

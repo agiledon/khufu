@@ -2,7 +2,7 @@
 
 A test generation skill framework for AI IDEs, following the **test pyramid** methodology with **Evaluation-Driven Development (EDD)** and **Specification-Driven Development (SDD)**.
 
-Khufu provides four skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e` — that leverage AI agents to generate unit tests, integration tests, API tests, and end-to-end tests for your projects.
+Khufu provides five skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, and `/khufu-harness` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, and project constraint assets (Harness Engineering) for your projects.
 
 ## Features
 
@@ -17,7 +17,7 @@ Khufu provides four skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e
 - **H2 Database Support** (IT): Lightweight in-memory database option for Java integration tests — zero Docker dependency, <5s startup for fast CI feedback
 - **Shared Test Data Factories**: Define test data once, reuse across IT, API, and E2E layers
 - **TDD-Aligned**: Tests follow Test-Driven Development and Agile best practices
-- **Claude Code Native**: Installs as a Claude Code plugin with slash commands
+- **Multi-IDE Support**: Installs into Claude Code, Cursor, OpenCode, Codex, Qoder, and Trae — each tool gets its skills placed using that tool's own skill/command directory convention
 
 ## Quick Start
 
@@ -29,12 +29,34 @@ npm install -g khufu-kit
 cd your-project
 khufu init
 
-# Use the skills in Claude Code
+# Use the skills in your IDE (e.g. Claude Code)
 /khufu-ut          # Generate unit tests
 /khufu-it          # Generate integration tests
 /khufu-api         # Generate API tests
 /khufu-e2e         # Generate E2E tests
+/khufu-harness     # Build / update project constraint assets
 ```
+
+## Supported Agentic Coding Tools
+
+Khufu installs its skills into each tool using that tool's own skill/command directory convention, so the same `khufu init` works everywhere:
+
+| Tool | Skill/Command directory (project) | Global directory |
+|------|-----------------------------------|------------------|
+| Claude Code | `.claude/skills/` | `~/.claude/skills` |
+| Cursor | `.cursor/commands/` | `~/.cursor/commands` |
+| OpenCode | `.opencode/commands/` | `~/.opencode/commands` |
+| Codex (OpenAI) | `.codex/skills/` | `~/.codex/skills` |
+| Qoder | `.qoder/skills/` | `~/.qoder/skills` |
+| Trae | `.trae/skills/` | `~/.trae/skills` |
+
+Install for one or more tools:
+
+```bash
+khufu init --ide claude,qoder,trae
+```
+
+Each selected tool receives all five skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`) in its own directory.
 
 ## Supported Languages (v0.2)
 
@@ -112,7 +134,7 @@ For tightly-coupled code that resists standard mocking, khufu-ut offers:
 After `khufu init`, a `khufu.yaml` file is created in your project root:
 
 ```yaml
-ide: claude
+ide: [claude, qoder, trae]
 language: typescript
 frameworks:
   ut: jest
@@ -228,7 +250,7 @@ npm link                    # registers 'khufu' command globally
 
 # Step 2: Install into your project
 cd /path/to/your-project
-khufu init                  # creates khufu.yaml, installs skills into .claude/skills/
+khufu init                  # creates khufu.yaml, installs skills into the selected IDE(s)' skills/commands directory
 ```
 
 To pick up changes after editing khufu-kit's source:

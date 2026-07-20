@@ -40,7 +40,34 @@ All assets are written into the **current working directory (the target project 
 
 ---
 
+# Step 0 — Determine documentation language (RUN FIRST)
+
+Before exploring or generating anything, ask the user which **language** the constraint-asset
+documents should be written in. Use **AskUserQuestion**:
+
+- **Question**: "约束资产文档使用哪种语言书写？ / Which language should the constraint assets be written in?"
+- **Options** (user may also supply their own language):
+  - **English** — all generated docs in English
+  - **中文 (Chinese)** — all generated docs in Simplified Chinese
+  - **日本語 (Japanese)** — all generated docs in Japanese
+- **Default**: if the user makes **no selection** or gives no answer, use **English**.
+
+Record the chosen language as `DOC_LANG`. **Every** asset generated or updated afterward
+(`AGENTS.md`, `Constitutions.md`, `docs/harness/*`, `docs/knowledge/*`, `docs/prd/*`) MUST be
+written in `DOC_LANG`. The agent's own reasoning may be in any language, but the produced Markdown
+assets must be in `DOC_LANG`.
+
+- **Build Workflow**: always ask via AskUserQuestion (default English if no answer).
+- **Update Workflow**: if assets already exist, first detect `DOC_LANG` from the existing
+  `AGENTS.md` / `Constitutions.md` (e.g., Chinese headings ⇒ Chinese). Only ask via
+  AskUserQuestion when the existing language cannot be determined.
+
+---
+
 # Build Workflow (initial creation)
+
+> **First action:** complete **Step 0 — Determine documentation language** (above) and use `DOC_LANG`
+> for every asset you generate.
 
 ## Step 1 — Explore target system state
 
@@ -172,6 +199,9 @@ docs/
 
 # Update Workflow (assets already exist)
 
+> **First action:** complete **Step 0 — Determine documentation language** (above) — detect `DOC_LANG`
+> from existing assets, or ask if undetectable. Write all revisions in `DOC_LANG`.
+
 Read the existing asset tree first so you know the valid target locations (use the **Asset Taxonomy**
 table). Then branch on the user's prompt.
 
@@ -288,7 +318,8 @@ Steps **e** (test pyramid) and **f** (BDR refactor) are **skipped** in auto mode
 
 # Asset Templates
 
-Fill from exploration; remove bracketed guidance after filling.
+Fill from exploration; remove bracketed guidance after filling. Write all template content in
+`DOC_LANG` (the language chosen in Step 0 — English by default).
 
 ## AGENTS.md
 ```markdown
