@@ -40,27 +40,33 @@ All assets are written into the **current working directory (the target project 
 
 ---
 
-# Step 0 — Determine documentation language (RUN FIRST)
+# Step 0 — Determine documentation language (THE FIRST STEP, ALWAYS)
 
-Before exploring or generating anything, ask the user which **language** the constraint-asset
-documents should be written in. Use **AskUserQuestion**:
+The **very first action** on every invocation — whether or not constraint assets already exist — is
+to confirm the documentation language with the user via **AskUserQuestion**. Do **NOT** skip this
+question even when `AGENTS.md` / `Constitutions.md` already exist.
 
-- **Question**: "约束资产文档使用哪种语言书写？ / Which language should the constraint assets be written in?"
-- **Options** (user may also supply their own language):
-  - **English** — all generated docs in English
-  - **中文 (Chinese)** — all generated docs in Simplified Chinese
-  - **日本語 (Japanese)** — all generated docs in Japanese
-- **Default**: if the user makes **no selection** or gives no answer, use **English**.
+1. **Detect the recommended language BEFORE asking** (silent, no user interaction yet):
+   - If constraint assets already exist, read `AGENTS.md` / `Constitutions.md` (and a sample of
+     `docs/**`) and detect their language (e.g., Chinese headings ⇒ 中文; English ⇒ English).
+   - If no assets exist, the recommended language is **English**.
+   - Result = `RECOMMENDED_LANG`.
+2. **Ask the user** with `AskUserQuestion`:
+   - **Question**: "约束资产文档使用哪种语言书写？ / Which language should the constraint assets be written in?"
+   - **Pre-select / recommend** the option matching `RECOMMENDED_LANG`.
+   - **Options** (user may also supply their own language):
+     - **English** (recommended when detected or unknown)
+     - **中文 (Chinese)**
+     - **日本語 (Japanese)**
+   - **Default**: if the user makes **no selection** or gives no answer, use `RECOMMENDED_LANG`
+     (which is **English** when nothing was detected).
+3. Record the final choice as `DOC_LANG`. **Every** asset generated or updated afterward
+   (`AGENTS.md`, `Constitutions.md`, `docs/harness/*`, `docs/knowledge/*`, `docs/prd/*`) MUST be
+   written in `DOC_LANG`. The agent's own reasoning may be in any language, but the produced
+   Markdown assets must be in `DOC_LANG`.
 
-Record the chosen language as `DOC_LANG`. **Every** asset generated or updated afterward
-(`AGENTS.md`, `Constitutions.md`, `docs/harness/*`, `docs/knowledge/*`, `docs/prd/*`) MUST be
-written in `DOC_LANG`. The agent's own reasoning may be in any language, but the produced Markdown
-assets must be in `DOC_LANG`.
-
-- **Build Workflow**: always ask via AskUserQuestion (default English if no answer).
-- **Update Workflow**: if assets already exist, first detect `DOC_LANG` from the existing
-  `AGENTS.md` / `Constitutions.md` (e.g., Chinese headings ⇒ Chinese). Only ask via
-  AskUserQuestion when the existing language cannot be determined.
+> Detection only sets the **recommended** option — the question is **always** asked. The produced
+> Markdown assets must be in `DOC_LANG`.
 
 ---
 
@@ -199,8 +205,9 @@ docs/
 
 # Update Workflow (assets already exist)
 
-> **First action:** complete **Step 0 — Determine documentation language** (above) — detect `DOC_LANG`
-> from existing assets, or ask if undetectable. Write all revisions in `DOC_LANG`.
+> **First action:** complete **Step 0 — Determine documentation language** (above). Even though assets
+> already exist, you MUST still ask the user via AskUserQuestion — use the detected existing language
+> as the recommended/pre-selected option, and write all revisions in the confirmed `DOC_LANG`.
 
 Read the existing asset tree first so you know the valid target locations (use the **Asset Taxonomy**
 table). Then branch on the user's prompt.
