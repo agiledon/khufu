@@ -33,14 +33,14 @@ All assets are written into the **current working directory (the target project 
 
 ## Entry Logic (run first, every invocation)
 
-1. Use **Glob** from the project root for: `AGENTS.md`, `Constitutions.md`, `docs/harness/**`,
-   `docs/knowledge/**`, `docs/prd/**`.
+1. Use **Glob** from the project root for: `AGENTS.md`, `CLAUDE.md`, `Constitutions.md`,
+   `docs/harness/**`, `docs/knowledge/**`, `docs/prd/**`.
 2. If **none** of these exist (or `docs/` is empty) → go to **Build Workflow** below.
 3. If assets **already exist** → go to **Update Workflow** below.
 
 ---
 
-# Step 0 — Determine documentation language (THE FIRST STEP, ALWAYS)
+# Step 0 — Determine documentation language & wizard file (THE FIRST STEP, ALWAYS)
 
 The **very first action** on every invocation — whether or not constraint assets already exist — is
 to confirm the documentation language with the user via **AskUserQuestion**. Do **NOT** skip this
@@ -61,19 +61,35 @@ question even when `AGENTS.md` / `Constitutions.md` already exist.
    - **Default**: if the user makes **no selection** or gives no answer, use `RECOMMENDED_LANG`
      (which is **English** when nothing was detected).
 3. Record the final choice as `DOC_LANG`. **Every** asset generated or updated afterward
-   (`AGENTS.md`, `Constitutions.md`, `docs/harness/*`, `docs/knowledge/*`, `docs/prd/*`) MUST be
-   written in `DOC_LANG`. The agent's own reasoning may be in any language, but the produced
-   Markdown assets must be in `DOC_LANG`.
+   (`AGENTS.md`, `CLAUDE.md`, `Constitutions.md`, `docs/harness/*`, `docs/knowledge/*`,
+   `docs/prd/*`) MUST be written in `DOC_LANG`. The agent's own reasoning may be in any language,
+   but the produced Markdown assets must be in `DOC_LANG`.
 
 > Detection only sets the **recommended** option — the question is **always** asked. The produced
 > Markdown assets must be in `DOC_LANG`.
+
+### Wizard file (navigation map) name
+
+The **wizard file** is the top-level navigation map an agent reads first. Its name depends on the
+target agentic tool. Determine it alongside `DOC_LANG`; every step below uses `WIZARD_FILE`.
+
+1. **Detect the tool silently:**
+   - `.claude/` or `CLAUDE.md` present → **Claude Code** (reads `CLAUDE.md`).
+   - `.opencode/` present, or `.khufu/khufu.yaml` `ide` lists `opencode` → **OpenCode** (reads `AGENTS.md`).
+   - `.cursor/` → Cursor; `.codex/` → Codex; etc.
+2. **Ask the user** with `AskUserQuestion` which tool consumes the assets, pre-selecting the
+   detected tool.
+3. Result:
+   - **Claude Code** → generate **both** `AGENTS.md` (canonical map) **and** a thin `CLAUDE.md`
+     pointer that links to `AGENTS.md`.
+   - **Any other tool** → generate only `AGENTS.md`.
 
 ---
 
 # Build Workflow (initial creation)
 
-> **First action:** complete **Step 0 — Determine documentation language** (above) and use `DOC_LANG`
-> for every asset you generate.
+> **First action:** complete **Step 0 — Determine documentation language & wizard file** (above) and
+> use `DOC_LANG` + `WIZARD_FILE` for every asset you generate.
 
 ## Step 1 — Explore target system state
 
@@ -142,6 +158,7 @@ navigation map).
 
 ```
 AGENTS.md
+CLAUDE.md                      # thin pointer → AGENTS.md (only when target tool is Claude Code)
 Constitutions.md
 docs/
   harness/
@@ -180,6 +197,11 @@ docs/
   to this project" and explain why.
 - **Markdown-first**: every file is Markdown.
 - **Link everything**: `AGENTS.md` and `README.md` (PRD) are indexes with relative links.
+- **Single source of truth (DRY)**: `Constitutions.md` owns the tech stack and architecture layers.
+  No other asset re-states them — the harness trio and knowledge base only add constraints and
+  details, linking back to the constitution.
+- **Stability (cache-friendly)**: keep `AGENTS.md` and `Constitutions.md` small and stable; route
+  volatile, evolving content (ADRs, PRD, eval-set, tool-schema, detailed arch notes) into `docs/`.
 - **Knowledge base is progressive**: seed it with what is known now; the Update workflow grows it.
 
 ## Step 6 — Embed the SDD dual-loop in Constitutions.md
@@ -193,6 +215,10 @@ docs/
 5. **SDD Dual-Loop Development Process & Gates** — the strict gated flow defined in
    **SDD Dual-Loop Reference** below. Copy it verbatim into the constitution.
 
+> Items 2 (**Tech stack**) and 3 (**Architecture layers**) are the **single source of truth** — no
+> other asset may restate them; the harness trio and knowledge base link here instead. Keep this
+> file small and stable: rewrite it only when the stack, layering, tooling, or process changes.
+
 ## Step 7 — Verify & report
 
 - If **OpenSpec** is installed: run `openspec validate` (or `openspec list`) to confirm the project
@@ -205,9 +231,10 @@ docs/
 
 # Update Workflow (assets already exist)
 
-> **First action:** complete **Step 0 — Determine documentation language** (above). Even though assets
-> already exist, you MUST still ask the user via AskUserQuestion — use the detected existing language
-> as the recommended/pre-selected option, and write all revisions in the confirmed `DOC_LANG`.
+> **First action:** complete **Step 0 — Determine documentation language & wizard file** (above).
+> Even though assets already exist, you MUST still ask the user via AskUserQuestion — use the
+> detected existing language as the recommended/pre-selected option, and write all revisions in the
+> confirmed `DOC_LANG`. Reuse the existing `WIZARD_FILE` unless the target tool changed.
 
 Read the existing asset tree first so you know the valid target locations (use the **Asset Taxonomy**
 table). Then branch on the user's prompt.
@@ -248,7 +275,9 @@ Triggered when the prompt gives **no asset content** (e.g., `/khufu-harness`, "s
 4. **Require explicit confirmation for EVERY proposed revision** (use **AskUserQuestion** /
    per-item confirm). Do **not** write anything the user has not confirmed.
 5. Apply only confirmed revisions via **Edit**/**Write**; then refresh `AGENTS.md` / `docs/prd/README.md`
-   indexes if navigation changed.
+   indexes if navigation changed. Prefer updating `docs/**`; rewrite `AGENTS.md` / `Constitutions.md`
+   only when their core content (navigation, stack, layering, tooling, dual-loop) changed, to
+   preserve cache hits.
 
 Mode 2 never overwrites silently — confirm-per-change is mandatory.
 
@@ -258,7 +287,8 @@ Mode 2 never overwrites silently — confirm-per-change is mandatory.
 
 | Category / intent | File path |
 |-------------------|-----------|
-| Project navigation map | `AGENTS.md` |
+| Project navigation map (canonical) | `AGENTS.md` |
+| Claude Code navigation pointer | `CLAUDE.md` (thin pointer → `AGENTS.md`) |
 | Highest principle / constitution / SDD dual-loop | `Constitutions.md` |
 | Security constraints | `docs/harness/context-package/security.md` |
 | Architecture constraints | `docs/harness/context-package/architecture.md` |
@@ -332,7 +362,8 @@ Fill from exploration; remove bracketed guidance after filling. Write all templa
 ```markdown
 # AGENTS.md — <project-name> Constraint Asset Map
 
-> Navigation map for all project constraint assets. Start here.
+> Navigation map for all project constraint assets. Start here. This is the **canonical** map;
+> `CLAUDE.md` (if present) is only a thin pointer to it.
 
 ## Quick start
 - Constitution (highest principle, SDD dual-loop): [Constitutions.md](./Constitutions.md)
@@ -350,11 +381,23 @@ Run `/khufu-harness` with explicit content (classified automatically) or with no
 diff-driven revision (requires confirmation per change).
 ```
 
+## CLAUDE.md (only when target tool is Claude Code)
+```markdown
+# CLAUDE.md — <project-name>
+
+> Claude Code reads this file. The canonical constraint-asset map lives in [AGENTS.md](./AGENTS.md)
+> — follow it. Keep this file as a thin pointer; do not duplicate the map here.
+```
+
 ## Constitutions.md
 ```markdown
 # Constitutions.md — <project-name>
 
 The highest principle of this project. All agents and contributors MUST honor it.
+
+> Single source of truth for the tech stack and architecture layers. Other assets link here rather
+> than restating these. Keep this file small and stable — change it only when the stack, layering,
+> tooling, or process genuinely changes.
 
 ## 1. Context
 <What the project is, goals, stakeholders, domain.>
@@ -398,7 +441,10 @@ The highest principle of this project. All agents and contributors MUST honor it
 ## docs/harness/context-package/architecture.md
 ```markdown
 # Architecture Constraints — <project-name>
-- Allowed layers: <list>
+
+> Layer list and tech stack live in [Constitutions.md](../../../Constitutions.md) §3 — do not
+> restate them here. This file only adds constraints the constitution does not specify.
+
 - Dependency direction: <e.g., domain has no outward deps>
 - Forbidden patterns: <singletons in domain, cyclic deps, …>
 - Integration boundaries: <external systems>
@@ -407,8 +453,12 @@ The highest principle of this project. All agents and contributors MUST honor it
 ## docs/harness/context-package/resource.md
 ```markdown
 # Resource Constraints — <project-name>
-- Database: <type, sizing, connection limits>
-- Cache: <type, eviction, TTL>
+
+> Tech choice (which DB/cache) lives in [Constitutions.md](../../../Constitutions.md) §2 — do not
+> restate it. This file only adds operational limits and SLAs.
+
+- Database limits: <connection pool size, max connections>
+- Cache limits: <TTL, eviction policy>
 - Compute/quota: <CPU/mem, rate limits>
 - External dependencies & SLAs: <third-party APIs>
 ```
@@ -526,6 +576,10 @@ Universal, always-true rules the system must never violate:
 - **Explore before generating**; never assume — derive from the target system.
 - **Markdown-first**; only deviate when a format is strictly required.
 - **Never overwrite silently** in Update mode; confirm per change in Mode 2.
-- **Keep AGENTS.md the single map**; every asset is reachable from it.
+- **DRY**: `Constitutions.md` is the single source of truth for tech stack and architecture layers;
+  every other asset references it rather than duplicating.
+- **Keep `AGENTS.md` the single canonical map**; `CLAUDE.md` (Claude Code) is only a pointer to it.
+- **Stability**: keep `AGENTS.md` and `Constitutions.md` small and stable for cache hits; grow
+  `docs/` instead.
 - **Progressive enrichment**: seed what is known; the Update workflow grows the assets over time.
 - Re-run `/khufu-harness` whenever the system or its requirements evolve.
