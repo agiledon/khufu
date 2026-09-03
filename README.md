@@ -29,6 +29,9 @@ npm install -g khufu-kit
 cd your-project
 khufu init
 
+# Check for a newer version on npm and update if available
+khufu update
+
 # Use the skills in your IDE (e.g. Claude Code)
 /khufu-ut          # Generate unit tests
 /khufu-it          # Generate integration tests
@@ -57,6 +60,18 @@ khufu init --ide claude,qoder,trae
 ```
 
 Each selected tool receives all five skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`) in its own directory.
+
+## Updating
+
+`khufu update` compares your installed version against the latest published `khufu-kit` on npm:
+
+- If a newer version is available, it updates (prompting for confirmation when interactive).
+- Otherwise it reports that you are already up to date.
+
+```bash
+khufu update       # interactive — prompts before updating
+khufu update -y    # update automatically without prompting
+```
 
 ## Supported Languages (v0.2)
 

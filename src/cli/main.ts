@@ -1,18 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
-
-function getVersion(): string {
-  try {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const pkg = JSON.parse(readFileSync(join(here, '..', '..', 'package.json'), 'utf-8'));
-    return pkg.version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
+import { updateCommand } from './commands/update.js';
+import { getLocalVersion } from '../version.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -20,7 +9,7 @@ export function createProgram(): Command {
   program
     .name('khufu')
     .description('🔺 Test generation skill framework for AI IDEs')
-    .version(getVersion());
+    .version(getLocalVersion());
 
   program
     .command('init')
@@ -39,5 +28,19 @@ export function createProgram(): Command {
       }
     });
 
+  program
+    .command('update')
+    .description('Check for a newer khufu-kit version on npm and update if available')
+    .option('-y, --yes', 'Skip confirmation and update automatically if a newer version exists')
+    .action(async (options) => {
+      try {
+        await updateCommand(options);
+      } catch (err) {
+        console.error('Error:', err instanceof Error ? err.message : err);
+        process.exit(1);
+      }
+    });
+
   return program;
 }
+

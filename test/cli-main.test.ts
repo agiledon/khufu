@@ -31,15 +31,21 @@ describe('CLI Main — Unit Tests', () => {
       expect(desc).toContain('Test');
     });
 
-    it('should have version "0.3.0"', () => {
+    it('should have version "0.4.1"', () => {
       const program = createProgram();
-      expect(program.version()).toBe('0.3.0');
+      expect(program.version()).toBe('0.4.1');
     });
 
     it('should have "init" command registered', () => {
       const program = createProgram();
       const commands = program.commands.map((c) => c.name());
       expect(commands).toContain('init');
+    });
+
+    it('should have "update" command registered', () => {
+      const program = createProgram();
+      const commands = program.commands.map((c) => c.name());
+      expect(commands).toContain('update');
     });
 
     it('should use commander API correctly', () => {
@@ -66,6 +72,23 @@ describe('CLI Main — Unit Tests', () => {
       expect(optionNames).toContain('--global');
       expect(optionNames).toContain('--scope');
       expect(optionNames).toContain('--force');
+      expect(optionNames).toContain('--yes');
+    });
+  });
+
+  describe('update command', () => {
+    it('should have description', () => {
+      const program = createProgram();
+      const updateCmd = program.commands.find((c) => c.name() === 'update');
+      expect(updateCmd).toBeDefined();
+      expect(updateCmd!.description()).toBeTruthy();
+    });
+
+    it('should have expected options', () => {
+      const program = createProgram();
+      const updateCmd = program.commands.find((c) => c.name() === 'update')!;
+
+      const optionNames = updateCmd.options.map((o) => o.long || o.short);
       expect(optionNames).toContain('--yes');
     });
   });
