@@ -215,6 +215,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log(chalk.cyan('    /khufu-e2e') + '  - Generate end-to-end tests');
     console.log(chalk.cyan('    /khufu-harness') + ' - Establish project constraint assets (Harness Engineering)');
     console.log(chalk.cyan('    /khufu-to-prd') + ' - Grill a requirement into MVP PRDs (Cockburn use cases)');
+    console.log(chalk.cyan('    /khufu-to-test-cases') + ' - Turn a PRD into docs/test-cases');
     console.log();
     console.log(chalk.gray('  Configuration saved to .khufu/khufu.yaml'));
     console.log(chalk.gray('  Edit .khufu/khufu.yaml to customize frameworks and directories.'));

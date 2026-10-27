@@ -206,6 +206,7 @@ describe('Installer — Unit Tests', () => {
       expect(names).toContain('khufu-e2e');
       expect(names).toContain('khufu-harness');
       expect(names).toContain('khufu-to-prd');
+      expect(names).toContain('khufu-to-test-cases');
     });
 
     it('should copy SKILL.md files (not empty)', async () => {

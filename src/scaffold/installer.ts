@@ -4,7 +4,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import type { ToolDefinition, InstallScope } from '../registry/types.js';
 
-const SKILL_NAMES = ['khufu-ut', 'khufu-it', 'khufu-api', 'khufu-e2e', 'khufu-harness', 'khufu-to-prd'];
+const SKILL_NAMES = ['khufu-ut', 'khufu-it', 'khufu-api', 'khufu-e2e', 'khufu-harness', 'khufu-to-prd', 'khufu-to-test-cases'];
 
 export interface InstallOptions {
   tool: ToolDefinition;

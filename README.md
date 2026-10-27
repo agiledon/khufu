@@ -4,7 +4,7 @@
 
 A test generation skill framework for AI IDEs, following the **test pyramid** methodology with **Evaluation-Driven Development (EDD)** and **Specification-Driven Development (SDD)**.
 
-Khufu provides six skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, `/khufu-harness`, and `/khufu-to-prd` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, project constraint assets (Harness Engineering), and MVP PRDs for your projects.
+Khufu provides seven skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, `/khufu-harness`, `/khufu-to-prd`, and `/khufu-to-test-cases` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, project constraint assets (Harness Engineering), MVP PRDs, and test cases traced to those PRDs.
 
 ## Features
 
@@ -20,6 +20,7 @@ Khufu provides six skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2
 - **Shared Test Data Factories**: Define test data once, reuse across IT, API, and E2E layers
 - **TDD-Aligned**: Tests follow Test-Driven Development and Agile best practices
 - **Requirement to PRD**: `/khufu-to-prd` grills a requirement description, splits it into MVPs, and writes Cockburn fully dressed use cases under `docs/prd/` (`prd-mvp1.md`, `prd-mvp2.md`, … and `prd-catalog.md`)
+- **PRD to test cases**: `/khufu-to-test-cases` reads one PRD and writes one document under `docs/test-cases/` (`test-cases-prd-mvp1.md`, …), with one case per main flow, alternate flow, and independently asserted business rule
 - **Multi-IDE Support**: Installs into Claude Code, Cursor, OpenCode, Codex, Qoder, and Trae — each tool gets its skills placed using that tool's own skill/command directory convention
 
 ## Quick Start
@@ -42,6 +43,7 @@ khufu update
 /khufu-e2e         # Generate E2E tests
 /khufu-harness     # Build / update project constraint assets
 /khufu-to-prd      # Grill a requirement into MVP PRDs
+/khufu-to-test-cases @docs/prd/prd-mvp1.md   # Turn that PRD into test cases
 ```
 
 ## Supported Agentic Coding Tools
@@ -63,7 +65,7 @@ Install for one or more tools:
 khufu init --ide claude,qoder,trae
 ```
 
-Each selected tool receives all six skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`, `khufu-to-prd`) in its own directory.
+Each selected tool receives all seven skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`, `khufu-to-prd`, `khufu-to-test-cases`) in its own directory.
 
 ## Updating
 
@@ -226,7 +228,8 @@ skills/
 ├── khufu-api/SKILL.md             # API test generator
 ├── khufu-e2e/SKILL.md             # E2E test generator
 ├── khufu-harness/SKILL.md         # Constraint asset builder
-└── khufu-to-prd/SKILL.md          # MVP PRDs as Cockburn use cases
+├── khufu-to-prd/SKILL.md          # MVP PRDs as Cockburn use cases
+└── khufu-to-test-cases/SKILL.md   # PRD to docs/test-cases
 ```
 
 Skills reference `_shared/` modules via Read-tool delegation — shared logic is defined once and consumed by all four skills.
