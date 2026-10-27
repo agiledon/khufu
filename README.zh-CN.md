@@ -4,7 +4,7 @@
 
 面向 AI IDE 的测试生成技能框架，遵循**测试金字塔**方法，并采用**评估驱动开发（EDD）**与**规约驱动开发（SDD）**。
 
-Khufu 提供五项技能——`/khufu-ut`、`/khufu-it`、`/khufu-api`、`/khufu-e2e` 与 `/khufu-harness`。它们借助 AI 智能体，为项目生成单元测试、集成测试、API 测试、端到端测试，以及项目约束资产（Harness Engineering）。
+Khufu 提供六项技能——`/khufu-ut`、`/khufu-it`、`/khufu-api`、`/khufu-e2e`、`/khufu-harness` 与 `/khufu-to-prd`。它们借助 AI 智能体，为项目生成单元测试、集成测试、API 测试、端到端测试、项目约束资产（Harness Engineering），以及按 MVP 划分的 PRD。
 
 ## 特性
 
@@ -19,6 +19,7 @@ Khufu 提供五项技能——`/khufu-ut`、`/khufu-it`、`/khufu-api`、`/khufu
 - **H2 数据库支持**（IT）：为 Java 集成测试提供轻量内存数据库选项——无需 Docker，启动时间小于 5 秒，便于在 CI 中快速得到反馈
 - **共享测试数据工厂**：测试数据定义一次，在 IT、API、E2E 各层复用
 - **对齐 TDD**：测试遵循测试驱动开发与敏捷实践
+- **需求到 PRD**：`/khufu-to-prd` 追问需求描述，将其拆成多个 MVP，并按 Cockburn 完全正式用例写入 `docs/prd/`（`prd-mvp1.md`、`prd-mvp2.md`……以及 `prd-catalog.md`）
 - **多 IDE 支持**：可安装到 Claude Code、Cursor、OpenCode、Codex、Qoder 与 Trae——每个工具都按自身的技能/命令目录约定放置技能
 
 ## 快速开始
@@ -40,6 +41,7 @@ khufu update
 /khufu-api         # 生成 API 测试
 /khufu-e2e         # 生成端到端测试
 /khufu-harness     # 建立 / 更新项目约束资产
+/khufu-to-prd      # 追问需求并生成按 MVP 划分的 PRD
 ```
 
 ## 支持的智能体编程工具
@@ -61,7 +63,7 @@ Khufu 按各工具自己的技能/命令目录约定安装技能，因此同一�
 khufu init --ide claude,qoder,trae
 ```
 
-每个被选中的工具都会在自己的目录中收到全部五项技能（`khufu-ut`、`khufu-it`、`khufu-api`、`khufu-e2e`、`khufu-harness`）。
+每个被选中的工具都会在自己的目录中收到全部六项技能（`khufu-ut`、`khufu-it`、`khufu-api`、`khufu-e2e`、`khufu-harness`、`khufu-to-prd`）。
 
 ## 更新
 
@@ -222,7 +224,9 @@ skills/
 ├── khufu-ut/SKILL.md              # 单元测试生成器
 ├── khufu-it/SKILL.md              # 集成测试生成器
 ├── khufu-api/SKILL.md             # API 测试生成器
-└── khufu-e2e/SKILL.md             # 端到端测试生成器
+├── khufu-e2e/SKILL.md             # 端到端测试生成器
+├── khufu-harness/SKILL.md         # 约束资产生成器
+└── khufu-to-prd/SKILL.md          # 按 Cockburn 用例编写的 MVP PRD
 ```
 
 技能通过 Read 工具委托引用 `_shared/` 模块——共享逻辑只定义一次，由四个技能共同使用。

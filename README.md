@@ -4,7 +4,7 @@
 
 A test generation skill framework for AI IDEs, following the **test pyramid** methodology with **Evaluation-Driven Development (EDD)** and **Specification-Driven Development (SDD)**.
 
-Khufu provides five skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, and `/khufu-harness` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, and project constraint assets (Harness Engineering) for your projects.
+Khufu provides six skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, `/khufu-harness`, and `/khufu-to-prd` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, project constraint assets (Harness Engineering), and MVP PRDs for your projects.
 
 ## Features
 
@@ -19,6 +19,7 @@ Khufu provides five skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e
 - **H2 Database Support** (IT): Lightweight in-memory database option for Java integration tests — zero Docker dependency, <5s startup for fast CI feedback
 - **Shared Test Data Factories**: Define test data once, reuse across IT, API, and E2E layers
 - **TDD-Aligned**: Tests follow Test-Driven Development and Agile best practices
+- **Requirement to PRD**: `/khufu-to-prd` grills a requirement description, splits it into MVPs, and writes Cockburn fully dressed use cases under `docs/prd/` (`prd-mvp1.md`, `prd-mvp2.md`, … and `prd-catalog.md`)
 - **Multi-IDE Support**: Installs into Claude Code, Cursor, OpenCode, Codex, Qoder, and Trae — each tool gets its skills placed using that tool's own skill/command directory convention
 
 ## Quick Start
@@ -40,6 +41,7 @@ khufu update
 /khufu-api         # Generate API tests
 /khufu-e2e         # Generate E2E tests
 /khufu-harness     # Build / update project constraint assets
+/khufu-to-prd      # Grill a requirement into MVP PRDs
 ```
 
 ## Supported Agentic Coding Tools
@@ -61,7 +63,7 @@ Install for one or more tools:
 khufu init --ide claude,qoder,trae
 ```
 
-Each selected tool receives all five skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`) in its own directory.
+Each selected tool receives all six skills (`khufu-ut`, `khufu-it`, `khufu-api`, `khufu-e2e`, `khufu-harness`, `khufu-to-prd`) in its own directory.
 
 ## Updating
 
@@ -222,7 +224,9 @@ skills/
 ├── khufu-ut/SKILL.md              # Unit test generator
 ├── khufu-it/SKILL.md              # Integration test generator
 ├── khufu-api/SKILL.md             # API test generator
-└── khufu-e2e/SKILL.md             # E2E test generator
+├── khufu-e2e/SKILL.md             # E2E test generator
+├── khufu-harness/SKILL.md         # Constraint asset builder
+└── khufu-to-prd/SKILL.md          # MVP PRDs as Cockburn use cases
 ```
 
 Skills reference `_shared/` modules via Read-tool delegation — shared logic is defined once and consumed by all four skills.

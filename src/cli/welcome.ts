@@ -45,6 +45,9 @@ export function showWelcome(): void {
   console.log(chalk.white('  Establish project constraint assets (Harness Engineering):'));
   console.log(chalk.cyan('    /khufu-harness') + ' — AGENTS.md, Constitutions.md, docs/harness, docs/knowledge, docs/prd');
   console.log();
+  console.log(chalk.white('  Turn a requirement into MVP PRDs:'));
+  console.log(chalk.cyan('    /khufu-to-prd') + ' — Grill a requirement into docs/prd (Cockburn use cases)');
+  console.log();
 }
 
 /**

@@ -26,7 +26,7 @@ fi
 # 2. Symlink each skill into .claude/skills/
 mkdir -p "$CLAUDIE_SKILLS"
 
-for skill in khufu-ut khufu-it khufu-api khufu-e2e khufu-harness; do
+for skill in khufu-ut khufu-it khufu-api khufu-e2e khufu-harness khufu-to-prd; do
   target="$CLAUDIE_SKILLS/$skill"
   src="$SKILLS_SRC/$skill"
 

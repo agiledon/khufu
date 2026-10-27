@@ -189,7 +189,7 @@ describe('Installer — Unit Tests', () => {
       }
     });
 
-    it('should install all four skill types', async () => {
+    it('should install every bundled skill', async () => {
       const { installSkills } = await import('../src/scaffold/installer.js');
 
       const result = await installSkills({
@@ -204,6 +204,8 @@ describe('Installer — Unit Tests', () => {
       expect(names).toContain('khufu-it');
       expect(names).toContain('khufu-api');
       expect(names).toContain('khufu-e2e');
+      expect(names).toContain('khufu-harness');
+      expect(names).toContain('khufu-to-prd');
     });
 
     it('should copy SKILL.md files (not empty)', async () => {
