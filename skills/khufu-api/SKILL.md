@@ -1,7 +1,7 @@
 ---
 name: khufu-api
 description: >-
-  This skill should be used when the user wants to generate API tests, asks for "API tests", mentions "API测试", "khufu-api", "REST tests", "contract tests", or wants to test HTTP/REST/gRPC endpoints. Supports spec-based generation (with @path to OpenAPI/Swagger spec or API documentation) and code-based generation (from existing route definitions and handlers). API tests verify the application from the network boundary — status codes, response bodies, headers, and error formats.
+  This skill should be used when the user wants to generate API tests, asks for "API tests", mentions "API测试", "khufu-api", "REST tests", "contract tests", or wants to test HTTP/REST/gRPC endpoints. Supports spec-based generation (with @path to OpenAPI/Swagger spec or API documentation), code-based generation (from existing route definitions and handlers), and both together. When a test case exists, the call target comes from the implemented route and the assertion comes from the test case. API tests verify the application from the network boundary — status codes, response bodies, headers, and error formats.
 version: 0.3.0
 allowed-tools:
   - Read
@@ -27,6 +27,7 @@ Generate API tests — the **service boundary layer** of the test pyramid. API t
 - **Auth scenarios**: Test unauthenticated, unauthorized, and authorized access paths
 - **Idempotency**: GET, PUT, DELETE should be idempotent; POST should create new resources
 - **EDD**: Define evaluation criteria first (Read `_shared/evaluation-framework.md`)
+- **Oracle binding**: Call the real route. Assert the test case. Do not invent a second contract (Read `_shared/oracle-binding.md`)
 
 ## Workflow
 
@@ -138,6 +139,18 @@ Follow the module's workflow to build a **skip list**:
    await seedUser(anAdminUser()); // from shared factory
    ```
 
+### Step 4.5: Bind test cases to real routes
+
+**Read `_shared/oracle-binding.md`** and follow it before generating any test.
+
+1. Collect API test cases (测试层 `API`) from `docs/test-cases/test-cases-*.md` or from a path the user gave. Collect real routes from handlers and from OpenAPI only when that document is generated from the code.
+2. Bind each case to one method + path. A case with no match, or with several equal matches, is unbound.
+3. Write `docs/khufu/api/oracle-mismatch.md` for every unbound case. Do not generate a test for it, and do not invent a path from the test-case prose.
+4. For each bound case, the later steps call that route. The assertion is the case's 期望结果 and 测试数据. Do not replace those with what the handler returns today.
+5. If there are no test cases, code-based generation may continue. Tag every such test `implementation-derived` and list it in a separate section of the report. It does not show that a user expectation passed.
+
+Pass the binding result into any parallel sub-agent. A sub-agent must not bind on its own and must not generate a test for an unbound case.
+
 ### Step 5: Generate API Tests
 
 #### 5.0 Parallel Execution (Large Systems)
@@ -164,6 +177,7 @@ For large systems with many API endpoints, writing API tests sequentially is tim
      - Test data strategy (from Step 4)
      - Base URL pattern and auth configuration
      - Annotation format (from the skill's annotation guidelines)
+     - Binding result from Step 4.5 — bound cases only, with the route and the test-case assertion. Do not rebind.
      - Instructions to read route handlers or parse spec, generate tests per Steps 5.1-5.2 guidelines, and write test files
    - **Collect results**: After all sub-agents complete, merge their summaries and endpoint coverage matrices.
    - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
@@ -174,6 +188,8 @@ For large systems with many API endpoints, writing API tests sequentially is tim
 5. **If target count < 3**: Skip parallel execution. Fall through to Steps 5.1-5.2.
 
 #### 5.1 SPEC-BASED Generation:
+
+When Step 4.5 bound test cases, generate only those bound cases. The spec supplies the assertion. The bound route supplies method and path. Skip this section's endpoint list for any case left in the mismatch report.
 
 1. **Parse the API specification**:
    - **OpenAPI/Swagger** (`.yaml`, `.json`): Parse paths, methods, request/response schemas, status codes, security schemes
@@ -198,6 +214,8 @@ For large systems with many API endpoints, writing API tests sequentially is tim
 5. Each test includes: `// Spec: API-<ENTITY>-<NNN> | Evaluates: <dimension>`
 
 #### 5.2 CODE-BASED Generation:
+
+When Step 4.5 bound test cases, discover routes only to confirm the bound entry. Do not add an assertion from the handler's return value. Cases with no test case, if generated, are `implementation-derived`.
 
 1. **Discover API routes**: Use **Glob** and **Grep** to find route definitions:
    - Java: `@GetMapping`, `@PostMapping`, `@RequestMapping` (Spring), `@Path` (JAX-RS)
@@ -311,6 +329,7 @@ mkdir -p docs/khufu/api
 - Evaluation Results (if EDD enabled)
 - Spec Coverage (if spec system enabled)
 - Suggested run command (start app + execute tests)
+- Oracle binding: bound count, unbound count, and `docs/khufu/api/oracle-mismatch.md` when that file was written
 
 ## API Test Patterns
 

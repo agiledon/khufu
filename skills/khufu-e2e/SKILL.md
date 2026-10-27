@@ -1,7 +1,7 @@
 ---
 name: khufu-e2e
 description: >-
-  This skill should be used when the user wants to generate end-to-end tests, asks for "E2E tests", mentions "端到端测试", "khufu-e2e", "browser tests", "UI tests", or wants to test complete user journeys through the entire system. Supports spec-based generation (with @path to user story or workflow documents) and code-based generation (from existing application routes and pages). E2E tests are the tip of the test pyramid — fewest in number, slowest, but cover the most critical business flows.
+  This skill should be used when the user wants to generate end-to-end tests, asks for "E2E tests", mentions "端到端测试", "khufu-e2e", "browser tests", "UI tests", or wants to test complete user journeys through the entire system. Supports spec-based generation (with @path to user story or workflow documents), code-based generation (from existing application routes and pages), and both together. When a test case exists, the page and selector come from the implemented UI and the assertion comes from the test case. E2E tests are the tip of the test pyramid — fewest in number, slowest, but cover the most critical business flows.
 version: 0.3.0
 allowed-tools:
   - Read
@@ -27,6 +27,7 @@ Generate end-to-end tests — the **tip** of the test pyramid. E2E tests simulat
 - **Smoke tests**: A small set of E2E tests can serve as production smoke tests
 - **Clean state**: Each test should start from a known, clean system state
 - **EDD**: Define evaluation criteria first, especially User Journey and Correctness dimensions
+- **Oracle binding**: Drive the real page. Assert the test case. Do not invent a selector that makes the test pass (Read `_shared/oracle-binding.md`)
 
 ## Workflow
 
@@ -153,6 +154,18 @@ Skip:
    ```
 2. Clean up data between test suites — use unique test users or DB reset.
 
+### Step 5.5: Bind test cases to real pages
+
+**Read `_shared/oracle-binding.md`** and follow it before generating any test.
+
+1. Collect UI test cases (测试层 `界面`) from `docs/test-cases/test-cases-*.md` or from a path the user gave. Collect real pages, routes, and selectors or accessibility roles from the UI source.
+2. Bind each case to one page or journey and to one selector or role that already exists. A case with no match, or with several equal matches, is unbound.
+3. Write `docs/khufu/e2e/oracle-mismatch.md` for every unbound case. Do not generate a test for it, and do not invent a selector or a button from the test-case prose.
+4. For each bound case, the later steps drive that page with that selector or role. The assertion is the case's 期望结果 (the observable result) and 测试数据. Do not replace those with the text currently rendered by the page.
+5. If there are no test cases, code-based generation may continue. Tag every such test `implementation-derived` and list it in a separate section of the report. It does not show that a user expectation passed.
+
+Pass the binding result into any parallel sub-agent. A sub-agent must not bind on its own and must not generate a test for an unbound case.
+
 ### Step 6: Generate E2E Tests
 
 #### 6.0 Parallel Execution (Large Systems)
@@ -180,6 +193,7 @@ For large systems with many critical user journeys, writing E2E tests sequential
      - Test data strategy and seed scripts (from Step 5)
      - Page Object pattern and `data-testid` conventions
      - Annotation format (from the skill's annotation guidelines)
+     - Binding result from Step 5.5 — bound cases only, with the page, the selector or role, and the test-case assertion. Do not rebind.
      - Instructions to read pages/routes, generate tests per Steps 6.1-6.2 guidelines, and write test files
    - **Collect results**: After all sub-agents complete, merge their summaries.
    - **Handle failures**: If any sub-agent fails, generate remaining tests for that partition sequentially.
@@ -190,6 +204,8 @@ For large systems with many critical user journeys, writing E2E tests sequential
 5. **If target count < 3**: Skip parallel execution. Fall through to Steps 6.1-6.2.
 
 #### 6.1 SPEC-BASED Generation:
+
+When Step 5.5 bound test cases, generate only those bound cases. The test case supplies the observable assertion. The bound page and selector or role supply the actions. Skip any case left in the mismatch report.
 
 1. **Read user story or workflow documents** at the given path.
 2. Parse user journeys — look for:
@@ -205,6 +221,8 @@ For large systems with many critical user journeys, writing E2E tests sequential
 5. Each test includes: `// Spec: E2E-<ENTITY>-<NNN> | Evaluates: User Journey`
 
 #### 6.2 CODE-BASED Generation:
+
+When Step 5.5 bound test cases, read the UI only to confirm the bound page and selector or role. Do not add an assertion from the text the page renders today. Cases with no test case, if generated, are `implementation-derived`.
 
 1. **Discover the application structure**:
    - For web apps: Use **Glob** to find page components, route definitions
@@ -323,6 +341,7 @@ mkdir -p docs/khufu/e2e
 - Evaluation Results (if EDD enabled)
 - Spec Coverage (if spec system enabled)
 - Suggested run command + CI integration hint
+- Oracle binding: bound count, unbound count, and `docs/khufu/e2e/oracle-mismatch.md` when that file was written
 
 ## E2E Test Patterns
 
