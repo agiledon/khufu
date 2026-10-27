@@ -1,5 +1,7 @@
 # Khufu
 
+**English** | [简体中文](./README.zh-CN.md)
+
 A test generation skill framework for AI IDEs, following the **test pyramid** methodology with **Evaluation-Driven Development (EDD)** and **Specification-Driven Development (SDD)**.
 
 Khufu provides five skills — `/khufu-ut`, `/khufu-it`, `/khufu-api`, `/khufu-e2e`, and `/khufu-harness` — that leverage AI agents to generate unit tests, integration tests, API tests, end-to-end tests, and project constraint assets (Harness Engineering) for your projects.

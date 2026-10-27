@@ -10,7 +10,9 @@
   "files": [
     "dist/",
     "skills/",
-    ".claude-plugin/"
+    ".claude-plugin/",
+    "README.md",
+    "README.zh-CN.md"
   ],
   "scripts": {
     "setup": "bash scripts/link.sh",
