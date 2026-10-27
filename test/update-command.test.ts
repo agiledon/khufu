@@ -50,7 +50,7 @@ describe('Version utilities — Unit Tests', () => {
     });
 
     it('matches the package.json version', () => {
-      expect(getLocalVersion()).toBe('0.4.1');
+      expect(getLocalVersion()).toBe('0.5.0');
     });
   });
 
