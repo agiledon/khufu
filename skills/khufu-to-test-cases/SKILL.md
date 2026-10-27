@@ -1,16 +1,14 @@
 ---
 name: khufu-to-test-cases
 description: >-
-  This skill should be used when the user wants test cases from a PRD, mentions "测试用例", "test cases", "test-cases", "khufu-to-test-cases", or wants one test-case document per PRD. It reads only the given PRD and writes docs/test-cases/test-cases-<prd>.md. Invoking the skill with no path still requires a question-tool confirmation before any scan. On OpenCode that tool is question, not AskUserQuestion. Scanned PRDs are a cursor multi-select and are not generated until the user selects them. If none exist, it tells the user to invoke khufu-to-prd.
-version: 0.1.4
+  This skill should be used when the user wants test cases from a PRD, mentions "测试用例", "test cases", "test-cases", "khufu-to-test-cases", or wants one test-case document per PRD. It reads only the given PRD and writes docs/test-cases/test-cases-<prd>.md. A script classifies the user's own words. With no explicit path it asks in the reply before any scan, then asks again before generating. If none exist, it tells the user to invoke khufu-to-prd.
+version: 0.1.5
 allowed-tools:
   - Read
   - Write
   - Bash
   - Grep
   - Glob
-  - question
-  - AskUserQuestion
 ---
 
 # khufu-to-test-cases: One PRD, One Test-Case Document
@@ -19,68 +17,51 @@ Read one PRD and write one test-case document. Do not interview the user about h
 
 The target project is the current working directory.
 
+<!-- KHUFU_TO_TEST_CASES_SKILL_BODY -->
+
 ## Step 1 — Confirm whether the user provides a PRD
 
-Start here. Do not scan or write before this step finishes. `/khufu-to-test-cases` with no path and no other words is not permission to scan or to write. An empty `$ARGUMENTS` is the same case.
+Start here. The first action is the script below. Do not Glob, Grep, Read, or Write before it prints a decision. Do not decide yourself that the invocation contains a path.
 
-An explicit PRD is a file path or `@path` the user wrote. Several paths are allowed. Each file is one source and produces one test-case document. Do not merge them.
+The script's input is **only** the user's words after `/khufu-to-test-cases`. That is `$ARGUMENTS` when the host expanded it, otherwise the text the user typed. If there were no such words, pass an empty string. Never pass this file, a directory listing, or a path you found on disk. A path written in this skill is not a path the user gave.
 
-`prd-catalog.md` and `docs/prd/README.md` are indexes, not PRDs. Never offer them and never read them as input.
-
-**The invocation already contains one or more PRD paths.** Skip the question below. Read each file and go to Step 3. If a path is missing, ask once for another path, or whether no PRD exists. Stop. Do not scan on that turn. Confirmation that none exists goes to Step 2.
-
-**The invocation does not contain a PRD path.** Ask the user to confirm whether they will provide one. This question is the whole of this turn.
-
-OpenCode does not have `AskUserQuestion`. Its picker is the **`question`** tool. The user moves the cursor up and down inside that tool. A markdown list is not that picker. If `question` is in the tool list, the first tool call must be `question`. Do not call Glob, Grep, Read, Bash, or Write on that turn.
-
-`AskUserQuestion` is only for Claude Code, and only when that exact tool is in the tool list. On OpenCode, `AskUserQuestion` is not a tool. Failing to find it is not a reason to scan. Do not recover by searching the project.
-
-If neither `question` nor `AskUserQuestion` is available, stop and say so. Write nothing.
-
-Call the host question tool once. One question. Single select. No option is pre-selected. End the turn. A recommended option is not the user's answer.
-
-OpenCode call:
-
-```json
-{
-  "questions": [
-    {
-      "question": "是否指定 PRD 文档或 PRD 路径？可以指定一份或多份。指定几份，就生成几份测试用例。",
-      "header": "PRD 来源",
-      "multiple": false,
-      "custom": true,
-      "options": [
-        {
-          "label": "指定路径",
-          "description": "接下来给出一个或多个 PRD 文件路径"
-        },
-        {
-          "label": "扫描已有",
-          "description": "不提供路径或目录。扫描后用上下键多选，扫描结果不会直接生成"
-        },
-        {
-          "label": "还没有 PRD",
-          "description": "改走 /khufu-to-prd。现在不扫描，也不写文件"
-        }
-      ]
-    }
-  ]
-}
+```bash
+python3 "<this skill directory>/scripts/resolve_prd_args.py" --phase confirm -- "$ARGUMENTS"
 ```
 
-Match the live `question` schema if it wraps the fields differently. Keep this header, this question, these three options, `multiple: false`, and `custom: true`.
+`<this skill directory>` is the folder that contains this `SKILL.md`. If the script is missing, or you cannot isolate the user's words, pass an empty string. Do not guess a path. Obey only the JSON it prints:
 
-Then wait for the tool result:
+| `decision` | What you do |
+|------------|-------------|
+| `use` | Step 3, and only for `paths` in that JSON. Several paths produce several test-case documents. Do not add files the script did not print. |
+| `scan` | Step 1b. The user declined to give a path. |
+| `no_prd` | Step 2. Do not scan. |
+| `ask` | Ask in the reply, then stop. This covers an empty invocation, "指定路径" without a file, a bare filename, a directory, or an index. |
+| `reason` is `refused_skill_body`, or the script did not run | Ask in the reply, then stop. Do not retry with a path taken from this file or from disk. |
 
-- **指定路径**, and the answer already contains one or more paths → Step 3 for each path.
-- **指定路径**, with no path yet → call `question` again and ask for the paths. Stop. Do not scan while waiting.
-- **扫描已有** → this is the only permission to scan. Go to Step 1b. Do not scan in the same turn as this question.
-- **还没有 PRD** → Step 2. Do not scan.
-- Tool error, dismiss, or no result → stop. Write nothing. Do not scan to recover.
+`prd-catalog.md` and `README.md` are indexes. The script will not put them in `paths`.
 
-### Step 1b — Scan only after the user chooses not to provide a path
+A missing file in `paths` is not a reason to scan. Ask for another path, or whether no PRD exists, and stop.
 
-Scan only after Step 1 returns **扫描已有**. Use **Glob** from the project root:
+### Ask in the reply
+
+Write this in the reply. Do not call a question tool. The recommended answer is not the user's answer. This turn ends here. Do not scan. Do not write.
+
+```
+❓ **Q1** - **是否指定 PRD 路径**: 这次调用没有带 PRD 文件路径。请确认是否要指定。可以给出一个或多个带目录分隔符的 .md 路径。指定几份，就生成几份测试用例。
+
+1. 指定路径 — 在回答里给出这些路径
+2. 扫描已有 — 不提供路径。下一轮才扫描，扫到之后还要你选择
+3. 还没有 PRD — 改走 /khufu-to-prd
+
+直接回复 1、2、3，或回复选项原文。
+
+➡️ 1。指定路径，并在回答里写出路径。
+```
+
+### Step 1b — Scan only after `decision` is `scan`
+
+Use **Glob** from the project root:
 
 - `docs/prd/**/*.md`
 - `**/prd.md`
@@ -90,40 +71,30 @@ Drop indexes (`prd-catalog.md`, `README.md`), anything under `docs/test-cases/`,
 
 **No PRD found.** Go to Step 2. Write nothing.
 
-**One or more PRDs.** Do not generate. Call **`question`** (OpenCode) or **AskUserQuestion** (Claude Code) and end the turn. A scan hit is not approval to write.
+**One or more PRDs.** Do not generate. Number them in the reply and stop. A scan hit is not approval to write. The recommended answer is not a selection.
 
-OpenCode call, with one option per scanned file and `multiple: true`:
+```
+❓ **Q1** - **选择 PRD 来源**: 已扫描到下面这些 PRD。回复编号可以选择一个或多个。只为选中的文档生成测试用例。未选中的不生成。
 
-```json
-{
-  "questions": [
-    {
-      "question": "选择作为测试用例来源的 PRD。用上下键移动光标，选择一个或多个。只为选中的文档生成测试用例。",
-      "header": "选择 PRD",
-      "multiple": true,
-      "custom": false,
-      "options": [
-        {
-          "label": "prd-mvp1.md",
-          "description": "docs/prd/prd-mvp1.md"
-        }
-      ]
-    }
-  ]
-}
+1. <path>
+2. <path>
+
+➡️ 回复要使用的编号。
 ```
 
-Replace the example option with the real files. `label` is the filename. `description` is the full path. Do not add a "全部生成" option. Do not pre-select any option.
+Use the real paths. On a later turn, run the script with `--phase select` on that reply only:
 
-If one question cannot hold every file, split them across questions in the same `question` call. Every question has `multiple: true`. Do not drop a file, and do not write a file the user had no way to select.
+```bash
+python3 "<this skill directory>/scripts/resolve_prd_args.py" --phase select -- "$ARGUMENTS"
+```
 
-When the tool returns:
+- `select` uses only those 1-based `indexes` from the list you showed. Drop indexes that are not in the list.
+- `select_all` uses that whole list, because the user said so.
+- `use` uses only `paths` from that JSON.
+- Any other decision ignores the scan. Do not generate the scanned files.
+- Do not run `--phase select` before this list exists. Without the flag, a reply of `2` means "扫描已有", not "the second file".
 
-- One or more selected paths → Step 3 for those paths only.
-- No option selected → write nothing.
-- No tool result → write nothing. Do not scan again. Do not generate the scanned files.
-
-Printing the paths in a markdown list and then writing the test cases is a failure. Choosing the files yourself is a failure. Writing one test-case document per scanned PRD because the user did not object is a failure.
+Choosing the files yourself is a failure. Writing one test-case document per scanned PRD because the user did not object is a failure.
 
 ## Output path
 
@@ -156,7 +127,7 @@ PRD 写好之后，再生成测试用例。一个 PRD 对应一份测试用例�
 
 ## Step 3 — Read the PRD and write
 
-Reach this step only with paths the user wrote, or paths returned by the `question` / AskUserQuestion tool. A scan result is not enough. The sentence below, "读完后直接写文件", applies only after that selection exists.
+Reach this step only when the script printed `"decision": "use"`, or when a later reply's script result selects numbers from a list Step 1b already showed. A scan result is not enough. The sentence below, "读完后直接写文件", applies only after that selection exists.
 
 Do this once per selected PRD. Read that whole PRD, then write its test-case file. No further questions about the cases. Several selected PRDs produce several files. Do not merge them. Do not write a file for a PRD the user did not select.
 

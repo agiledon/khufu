@@ -81,9 +81,13 @@ export async function installSkills(options: InstallOptions): Promise<InstallRes
       continue;
     }
 
-    // Install
+    // Install the skill directory so companion scripts ship with SKILL.md.
     await fs.ensureDir(targetDir);
-    await fs.copyFile(sourceFile, targetFile);
+    if (tool.skillSubdirPattern) {
+      await fs.copy(sourceDir, targetDir, { overwrite: true });
+    } else {
+      await fs.copyFile(sourceFile, targetFile);
+    }
     result.installed.push({ name: skillName, targetPath: targetFile });
   }
 

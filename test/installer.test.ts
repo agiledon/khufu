@@ -207,6 +207,15 @@ describe('Installer — Unit Tests', () => {
       expect(names).toContain('khufu-harness');
       expect(names).toContain('khufu-to-prd');
       expect(names).toContain('khufu-to-test-cases');
+      const scriptPath = path.join(
+        tmpDir,
+        '.claude',
+        'skills',
+        'khufu-to-test-cases',
+        'scripts',
+        'resolve_prd_args.py',
+      );
+      expect(await fs.pathExists(scriptPath)).toBe(true);
     });
 
     it('should copy SKILL.md files (not empty)', async () => {
