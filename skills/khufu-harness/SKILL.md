@@ -2,7 +2,7 @@
 name: khufu-harness
 description: >-
   This skill establishes targeted constraint assets (Harness Engineering) for a target system following SDD (Spec-Driven Development) principles. Use when the user wants to "establish constraint assets", "create harness", "khufu-harness", "build AGENTS.md / Constitutions.md", "set up project constraints", or wants to update/revise existing constraint assets. On first run it explores the target project (specs, PRDs, codebase, config) and generates AGENTS.md, Constitutions.md, the docs/harness trio (context-package, tool-schema, eval-set), the docs/knowledge base (arch, design-system, quality, code-standard, business-rule), and docs/prd. After creation it supports updating assets either by explicit user content (intelligently classified into the correct location) or by diffing current specs/code against the existing assets.
-version: 0.1.0
+version: 0.1.1
 allowed-tools:
   - Read
   - Write
@@ -134,14 +134,13 @@ Summarize findings: language(s), detected frameworks, existing docs, and what is
 
 ## Step 4 — Detect tooling
 
-Detect the four external capabilities the constitution will reference. Use **Bash** + **Glob** as
+Detect the three external capabilities the constitution will reference. Use **Bash** + **Glob** as
 appropriate, then record availability in `Constitutions.md` and **offer** (via AskUserQuestion) to
 install anything missing — only install after explicit user confirmation.
 
 | Tool | Detect via | Install (user-confirmed) |
 |------|-----------|---------------------------|
 | **OpenSpec CLI** | `command -v openspec` / `npx openspec --version`; presence of `openspec/` dir or `openspec.json` | `npm install -g @fission-ai/openspec` |
-| **Superpowers** (brainstorming, writing-plans) | availability of the superpowers skills in the agentic tool (check `**/skills/superpowers*/SKILL.md` or the tool's skill list) | install per the agentic tool's mechanism |
 | **OpenMole** (BDR refactoring) | `npm ls openmole` / `command -v openmole` / `npx openmole --version` | `npm install -g openmole` (see https://www.npmjs.com/package/openmole) |
 | **Khufu** (khufu-ut/it/api/e2e) | presence of khufu skills/commands (`khufu-ut` …) or `npx khufu --version` | `npm install -g khufu-kit` (see https://www.npmjs.com/package/khufu-kit) |
 
@@ -204,7 +203,7 @@ docs/
   volatile, evolving content (ADRs, PRD, eval-set, tool-schema, detailed arch notes) into `docs/`.
 - **Knowledge base is progressive**: seed it with what is known now; the Update workflow grows it.
 
-## Step 6 — Embed the SDD dual-loop in Constitutions.md
+## Step 6 — Embed the SDD Development Process in Constitutions.md
 
 `Constitutions.md` is the **highest principle** of the project. It MUST contain, at minimum:
 
@@ -212,8 +211,8 @@ docs/
 2. **Tech stack** — the resolved stack from Step 2.
 3. **Architecture layers** — the resolved layering from Step 3.
 4. **Tooling status** — detected tools from Step 4 (installed / not-installed + install cmd).
-5. **SDD Dual-Loop Development Process & Gates** — the strict gated flow defined in
-   **SDD Dual-Loop Reference** below. Copy it verbatim into the constitution.
+5. **SDD Development Process & Gates** — the strict gated flow defined in
+   **SDD Reference** below. Copy it verbatim into the constitution.
 
 > Items 2 (**Tech stack**) and 3 (**Architecture layers**) are the **single source of truth** — no
 > other asset may restate them; the harness trio and knowledge base link here instead. Keep this
@@ -276,7 +275,7 @@ Triggered when the prompt gives **no asset content** (e.g., `/khufu-harness`, "s
    per-item confirm). Do **not** write anything the user has not confirmed.
 5. Apply only confirmed revisions via **Edit**/**Write**; then refresh `AGENTS.md` / `docs/prd/README.md`
    indexes if navigation changed. Prefer updating `docs/**`; rewrite `AGENTS.md` / `Constitutions.md`
-   only when their core content (navigation, stack, layering, tooling, dual-loop) changed, to
+   only when their core content (navigation, stack, layering, tooling, SDD process) changed, to
    preserve cache hits.
 
 Mode 2 never overwrites silently — confirm-per-change is mandatory.
@@ -289,7 +288,7 @@ Mode 2 never overwrites silently — confirm-per-change is mandatory.
 |-------------------|-----------|
 | Project navigation map (canonical) | `AGENTS.md` |
 | Claude Code navigation pointer | `CLAUDE.md` (thin pointer → `AGENTS.md`) |
-| Highest principle / constitution / SDD dual-loop | `Constitutions.md` |
+| Highest principle / constitution / SDD process | `Constitutions.md` |
 | Security constraints | `docs/harness/context-package/security.md` |
 | Architecture constraints | `docs/harness/context-package/architecture.md` |
 | Resource constraints (DB/cache/compute) | `docs/harness/context-package/resource.md` |
@@ -311,45 +310,45 @@ Use this table both to **write** `AGENTS.md` links and to **classify** Mode-1 co
 
 ---
 
-# SDD Dual-Loop Reference (copy into Constitutions.md)
+# SDD Reference (copy into Constitutions.md)
 
-> The development process is a strict, gated dual loop. Each step must be **fully completed and
-> confirmed by the user** before the next step begins. The loop is driven by the tools detected in
-> this constitution (OpenSpec, Superpowers, OpenMole, Khufu). Where a tool is not installed, the
-> corresponding manual action is performed instead.
+> The development process follows **SDD (Spec-Driven Development)** and its **SDD Development
+> Process**. Each step must be **fully completed and confirmed by the user** before the next step
+> begins, unless auto mode is enabled. The process is driven by the tools detected in this
+> constitution (OpenSpec, Khufu, OpenMole). Where a tool is not installed, the corresponding manual
+> action is performed instead.
 
 **Gate rule:** proceed to the next step ONLY after the current step is done AND the user confirms.
-At step **a**, ask the user whether to run in **auto mode**.
+Human approval may be attached to **any** step. At step **a**, ask the user whether to run in
+**auto mode**.
 
-### Standard mode (gated a → h)
+### Standard mode (gated a → f)
 
-- **a. Propose** — Run OpenSpec `propose` (`openspec propose` / `/opsx:propose`) to create a change
-  with planning artifacts (proposal, specs, design, tasks). → **Human review** (non-auto) → b.
-- **b. Brainstorm** — Run Superpowers **brainstorming** on the proposal to explore intent,
-  requirements, and design alternatives. → **Human review** (non-auto) → c.
-- **c. Plan** — Run Superpowers **writing-plans** to turn the brainstorm output into an
-  implementation plan. → **Human review** (non-auto) → d.
-- **d. Execute** — Choose the Superpowers execution option (**SubAgent** OR **inline**). Ask the
-  user whether to enable **atomic commits**. After all tasks execute, the user confirms → e.
-- **e. Test pyramid** — Run, in order: `khufu-ut` → `khufu-it` → `khufu-api` → `khufu-e2e`.
-  **Optional** — the user may skip. Confirm or skip → f.
-- **f. Refactor (BDR)** — Ask the user to refactor existing code per **OpenMole BDR**
-  (Big Deal Refactoring) requirements. **Optional** — the user may skip. Confirm or skip → g.
-- **g. Verify** — Run OpenSpec `verify` (`openspec verify` / `/opsx:verify`). **Mandatory.** The user
-  confirms the result → h. In **auto mode**, if verification reports issues, automatically fix them
-  and re-verify.
-- **h. Archive** — Run OpenSpec `archive` (`openspec archive` / `/opsx:archive`) to archive the
-  completed change and merge spec updates. **Mandatory.**
+- **a. Propose** — Use the OpenSpec **propose** skill to create a change with planning artifacts
+  (proposal, specs, design, tasks). The propose step accepts these inputs:
+  1. The **PRD document** expressing the requirements.
+  2. The **UI design specification + UI prototype** (only when the change involves UI).
+  → **Human review** (non-auto) → b.
+- **b. Apply** — Use the OpenSpec **apply** skill to implement the proposed change.
+  → **Human review** (non-auto) → c.
+- **c. Test** — Use the **Khufu** skills to generate and run tests (`khufu-ut` → `khufu-it` →
+  `khufu-api` → `khufu-e2e`, as applicable). **Optional** — the user may skip.
+  Confirm or skip → d.
+- **d. Refactor** — Use the **OpenMole** skills to refactor the code (BDR / Big Deal Refactoring).
+  **Optional** — the user may skip. Confirm or skip → e.
+- **e. Verify** — Use the OpenSpec **verify** skill. **Mandatory.** The user confirms the result
+  → f. In **auto mode**, if verification reports issues, automatically fix them and re-verify.
+- **f. Archive** — Use the OpenSpec **archive** skill to archive the completed change and merge spec
+  updates. **Mandatory.**
 
-### Auto mode (a → b → c → d → g → h)
+### Auto mode (a → b → e → f)
 
-When the user selects **auto mode** at step **a**, the loop runs automatically without per-step
+When the user selects **auto mode** at step **a**, the process runs automatically without per-step
 human review, in the shortened sequence:
 
-`a (propose)` → `b (brainstorm)` → `c (plan)` → `d (execute)` → `g (verify, auto-fix issues)` →
-`h (archive)`.
+`a (propose)` → `b (apply)` → `e (verify, auto-fix issues)` → `f (archive)`.
 
-Steps **e** (test pyramid) and **f** (BDR refactor) are **skipped** in auto mode.
+Steps **c** (test) and **d** (refactor) are **skipped** in auto mode.
 
 ---
 
@@ -366,7 +365,7 @@ Fill from exploration; remove bracketed guidance after filling. Write all templa
 > `CLAUDE.md` (if present) is only a thin pointer to it.
 
 ## Quick start
-- Constitution (highest principle, SDD dual-loop): [Constitutions.md](./Constitutions.md)
+- Constitution (highest principle, SDD process): [Constitutions.md](./Constitutions.md)
 - Harness constraint trio: [context-package](./docs/harness/context-package/) ·
   [tool-schema](./docs/harness/tool-schema/tool-schema.md) ·
   [eval-set](./docs/harness/eval-set/eval-set.md)
@@ -419,12 +418,11 @@ The highest principle of this project. All agents and contributors MUST honor it
 | Tool | Status | Install |
 |------|--------|---------|
 | OpenSpec CLI | installed / not installed | `npm install -g @fission-ai/openspec` |
-| Superpowers | available / not available | <per agentic tool> |
 | OpenMole (BDR) | installed / not installed | `npm install -g openmole` |
 | Khufu (khufu-kit) | installed / not installed | `npm install -g khufu-kit` |
 
-## 5. SDD Dual-Loop Development Process & Gates
-<Copy the full "SDD Dual-Loop Reference" block from the khufu-harness skill here.>
+## 5. SDD Development Process & Gates
+<Copy the full "SDD Reference" block from the khufu-harness skill here.>
 ```
 
 ## docs/harness/context-package/security.md
