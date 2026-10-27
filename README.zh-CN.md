@@ -59,7 +59,7 @@ Khufu 按各工具自己的技能/命令目录约定安装技能，因此同一�
 | Qoder | `.qoder/skills/` | `~/.qoder/skills` |
 | Trae | `.trae/skills/` | `~/.trae/skills` |
 
-为其中一个或多个工具安装：
+`khufu init` 会请你选择要安装的工具，没有任何预选项。`--yes` 和非交互运行不会代选工具，需要自己传入 `--ide`：
 
 ```bash
 khufu init --ide claude,qoder,trae

@@ -120,8 +120,17 @@ describe('khufu CLI — E2E Tests', () => {
   });
 
   describe('khufu init (full flow)', () => {
-    it('should create project structure with --yes flag', () => {
+    it('should not choose a tool when --yes is given without --ide', () => {
       const result = runKhufu(['init', '--yes'], tmpDir);
+      const output = result.stdout + result.stderr;
+
+      expect(output).toContain('--ide');
+      expect(result.status).not.toBe(0);
+      expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(false);
+    });
+
+    it('should create project structure with --yes flag', () => {
+      const result = runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       // Verify output includes key messages
       const output = result.stdout + result.stderr;
@@ -133,7 +142,7 @@ describe('khufu CLI — E2E Tests', () => {
     });
 
     it('should create valid khufu.yaml', () => {
-      runKhufu(['init', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       const configContent = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(configContent).toContain('- claude');
@@ -148,7 +157,7 @@ describe('khufu CLI — E2E Tests', () => {
     });
 
     it('should handle --global flag', () => {
-      runKhufu(['init', '--global', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--global', '--yes'], tmpDir);
 
       expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
       const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
@@ -156,14 +165,14 @@ describe('khufu CLI — E2E Tests', () => {
     });
 
     it('should handle --scope project flag', () => {
-      runKhufu(['init', '--scope', 'project', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--scope', 'project', '--yes'], tmpDir);
 
       const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: project');
     });
 
     it('should install skills into .claude/skills/', () => {
-      runKhufu(['init', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       const skillsDir = path.join(tmpDir, '.claude', 'skills');
       if (fs.pathExistsSync(skillsDir)) {
@@ -176,7 +185,7 @@ describe('khufu CLI — E2E Tests', () => {
     it('should detect Python project and configure accordingly', () => {
       fs.writeFileSync(path.join(tmpDir, 'setup.py'), '# setup', 'utf-8');
 
-      runKhufu(['init', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('python');
@@ -186,7 +195,7 @@ describe('khufu CLI — E2E Tests', () => {
       fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name":"test"}', 'utf-8');
       fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{}', 'utf-8');
 
-      runKhufu(['init', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('typescript');
@@ -233,10 +242,10 @@ describe('khufu CLI — E2E Tests', () => {
   describe('idempotency', () => {
     it('init --yes should succeed on already-initialized project', () => {
       // First init
-      runKhufu(['init', '--yes'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       // Second init — should not error, but should skip install
-      const result = runKhufu(['init', '--yes'], tmpDir);
+      const result = runKhufu(['init', '--ide', 'claude', '--yes'], tmpDir);
 
       // Config should still exist
       expect(fs.pathExistsSync(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
@@ -249,7 +258,7 @@ describe('khufu CLI — E2E Tests', () => {
       fs.writeFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'ide: old\nscope: project\n', 'utf-8');
 
       // Force reinit
-      runKhufu(['init', '--yes', '--force'], tmpDir);
+      runKhufu(['init', '--ide', 'claude', '--yes', '--force'], tmpDir);
 
       const content = fs.readFileSync(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('- claude');

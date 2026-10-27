@@ -12,9 +12,8 @@ export async function promptIDE(availableTools: ToolDefinition[]): Promise<ToolD
       name: 'toolIds',
       message: 'Select your Agentic Coding Tools (space to toggle, enter to confirm):',
       choices: availableTools.map((tool) => ({
-        name: `${tool.name}${tool.id === 'claude' ? ' (recommended)' : ''}`,
+        name: tool.name,
         value: tool.id,
-        checked: tool.id === 'claude',
       })),
       pageSize: 10,
       validate: (answer: string[]) => {

@@ -10,7 +10,7 @@
  * - These tests use real file system in temp directories.
  *
  * Running note:
- * - Tests in a CI environment without TTY will auto-select defaults.
+ * - Tests in a CI environment without TTY must pass --ide. Nothing is selected by default.
  * - If skills/ directory is missing, installer will skip skills (not fail).
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
@@ -43,11 +43,18 @@ describe('Init Command — Integration Tests', () => {
   });
 
   describe('initCommand with auto mode (non-interactive)', () => {
+    it('should refuse to choose a tool when --yes is given without --ide', async () => {
+      const { initCommand } = await import('../src/cli/commands/init.js');
+
+      await expect(initCommand({ yes: true, force: false })).rejects.toThrow(/--ide/);
+      expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(false);
+    });
+
     it('should create khufu.yaml and .khufu/ directory', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
       // Run with --yes to skip prompts
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       // Verify scaffold result
       expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
@@ -58,7 +65,7 @@ describe('Init Command — Integration Tests', () => {
     it('should create valid khufu.yaml content', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('- claude');
@@ -70,7 +77,7 @@ describe('Init Command — Integration Tests', () => {
     it('should install skills when skills source is available', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       // Check if skills were installed
       const skillsDir = path.join(tmpDir, '.claude', 'skills');
@@ -88,7 +95,7 @@ describe('Init Command — Integration Tests', () => {
 
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('python');
@@ -100,7 +107,7 @@ describe('Init Command — Integration Tests', () => {
 
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('typescript');
@@ -145,7 +152,7 @@ describe('Init Command — Integration Tests', () => {
     it('should handle global scope', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ global: true, yes: true, force: false });
+      await initCommand({ ide: 'claude', global: true, yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: global');
@@ -154,7 +161,7 @@ describe('Init Command — Integration Tests', () => {
     it('should handle scope "project"', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ scope: 'project', yes: true, force: false });
+      await initCommand({ ide: 'claude', scope: 'project', yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('scope: project');
@@ -165,7 +172,7 @@ describe('Init Command — Integration Tests', () => {
 
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('go');
@@ -176,7 +183,7 @@ describe('Init Command — Integration Tests', () => {
 
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: true });
+      await initCommand({ ide: 'claude', yes: true, force: true });
 
       const content = await fs.readFile(path.join(tmpDir, '.khufu', 'khufu.yaml'), 'utf-8');
       expect(content).toContain('- claude');
@@ -188,7 +195,7 @@ describe('Init Command — Integration Tests', () => {
 
       // Empty directory — no language detected
       // In auto mode, falls back to 'java'
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       expect(await fs.pathExists(path.join(tmpDir, '.khufu', 'khufu.yaml'))).toBe(true);
     });
@@ -198,7 +205,7 @@ describe('Init Command — Integration Tests', () => {
     it('should record installed skills in state file', async () => {
       const { initCommand } = await import('../src/cli/commands/init.js');
 
-      await initCommand({ yes: true, force: false });
+      await initCommand({ ide: 'claude', yes: true, force: false });
 
       const statePath = path.join(tmpDir, '.khufu', 'installed-skills.json');
       if (await fs.pathExists(statePath)) {

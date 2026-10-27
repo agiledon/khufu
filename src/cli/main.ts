@@ -14,11 +14,11 @@ export function createProgram(): Command {
   program
     .command('init')
     .description('Initialize khufu in the current project — displays the welcome page')
-    .option('--ide <ides>', 'Target IDE(s), comma-separated (claude, cursor, opencode, codex)')
+    .option('--ide <ides>', 'Agentic Coding Tool(s), comma-separated (claude, cursor, opencode, codex, qoder, trae). Required when non-interactive')
     .option('--global', 'Install globally instead of project-level')
     .option('--scope <scope>', 'Installation scope (project, global)')
     .option('--force', 'Force overwrite existing installation')
-    .option('-y, --yes', 'Skip all prompts and use defaults')
+    .option('-y, --yes', 'Skip remaining prompts and use defaults. Does not choose a tool; pass --ide')
     .action(async (options) => {
       try {
         await initCommand(options);

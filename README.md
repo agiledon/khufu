@@ -59,7 +59,7 @@ Khufu installs its skills into each tool using that tool's own skill/command dir
 | Qoder | `.qoder/skills/` | `~/.qoder/skills` |
 | Trae | `.trae/skills/` | `~/.trae/skills` |
 
-Install for one or more tools:
+`khufu init` asks which tools to install. None is pre-selected. `--yes` and a non-interactive run do not choose a tool; pass `--ide`:
 
 ```bash
 khufu init --ide claude,qoder,trae

@@ -68,8 +68,7 @@ export function showToolList(tools: ToolDefinition[]): void {
   console.log(chalk.bold('  Supported Agentic Coding Tools:'));
   console.log();
   for (const tool of tools) {
-    const indicator = tool.id === 'claude' ? chalk.green(' ● ') : chalk.gray(' ○ ');
-    console.log(`  ${indicator}${chalk.white(tool.name)}`);
+    console.log(`  ${chalk.gray(' ○ ')}${chalk.white(tool.name)}`);
   }
   console.log();
 }

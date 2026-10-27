@@ -57,20 +57,16 @@ export async function initCommand(options: InitOptions): Promise<void> {
       console.log(chalk.red('✗ No supported IDEs found in registry.'));
       return;
     }
-    if (availableTools.length === 1) {
-      tools = [availableTools[0]];
-      console.log(chalk.green(`✓ Auto-selected IDE: ${tools[0].name}`));
-    } else if (autoMode) {
-      // In non-interactive mode, pick Claude Code
-      tools = [availableTools[0]];
-      console.log(chalk.green(`✓ Auto-selected IDE: ${tools[0].name}`));
-    } else {
-      // Show multi-select tool selection on welcome page
-      console.log(chalk.bold('  Select your Agentic Coding Tools:'));
-      console.log(chalk.gray('  (Space to toggle, arrows to navigate, Enter to confirm)'));
-      console.log();
-      tools = await promptIDE(availableTools);
+    if (!interactive || options.yes) {
+      const available = availableTools.map((tool) => tool.id).join(', ');
+      throw new Error(
+        `No Agentic Coding Tool selected. Pass --ide <id>. Available: ${available}`,
+      );
     }
+    console.log(chalk.bold('  Select your Agentic Coding Tools:'));
+    console.log(chalk.gray('  (Space to toggle, arrows to navigate, Enter to confirm)'));
+    console.log();
+    tools = await promptIDE(availableTools);
   }
 
   const toolNames = tools.map(t => t.name).join(', ');
