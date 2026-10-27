@@ -11,16 +11,18 @@ Khufu 提供七项技能——`/khufu-ut`、`/khufu-it`、`/khufu-api`、`/khufu
 - **测试金字塔**：覆盖全部四层测试，并内置去重——上层只测下层在结构上测不到的内容
 - **评估驱动开发（EDD）**：生成测试之前，先定义可量化的质量标准（覆盖率、性能、正确性）。每条测试都服务于一项可度量的评估标准。内置 `评估 → 验证 → 改进` 反馈闭环
 - **规约驱动开发（SDD）**：测试用例是显式、带版本的 Markdown 规约文件（`specs/<feature>/spec.v<N>.md`）。支持正向生成（规约 → 测试）与反向生成（测试 → 规约）。每条测试都链回对应的规约条目
-- **两条生成路径**：
+- **生成路径**：
   - **基于规约**：从规约文档生成测试（`/khufu-ut @docs/spec.md`）
   - **基于代码**：阅读现有实现生成测试（并自动补写回溯规约）
+  - **两者一起**（API 与 E2E）：测试用例和实现都在时，调用目标来自真实的路由或页面，断言来自测试用例
 - **语言感知**：自动识别项目语言，并推荐合适的测试框架
 - **可测试性评估**（UT）：将源文件评为 A/B/C——可直接测试、需要 PowerMock（标记为 `fragile`），或需要重构（记入 `untestable-report.md`）
 - **H2 数据库支持**（IT）：为 Java 集成测试提供轻量内存数据库选项——无需 Docker，启动时间小于 5 秒，便于在 CI 中快速得到反馈
 - **共享测试数据工厂**：测试数据定义一次，在 IT、API、E2E 各层复用
 - **对齐 TDD**：测试遵循测试驱动开发与敏捷实践
 - **需求到 PRD**：`/khufu-to-prd` 追问需求描述，将其拆成多个 MVP，并按 Cockburn 完全正式用例写入 `docs/prd/`（`prd-mvp1.md`、`prd-mvp2.md`……以及 `prd-catalog.md`）
-- **PRD 到测试用例**：`/khufu-to-test-cases` 读取一份 PRD，在 `docs/test-cases/` 写下对应的一份用例文档（`test-cases-prd-mvp1.md`……）。基本流、备选流，以及需要单独断言的业务规则，各写一条
+- **PRD 到测试用例**：`/khufu-to-test-cases` 在 `docs/test-cases/` 为一份 PRD 写下对应的一份用例文档（`test-cases-prd-mvp1.md`……）。基本流、备选流，以及需要单独断言的业务规则，各写一条。脚本只判断命令后面的文字。没有 PRD 路径时，技能在回复里提问，不扫描、也不写文件。用户选择扫描之后，先列出文件，再次确认后才生成。`prd-catalog.md` 是目录，不是输入
+- **代码绑定调用**（API 与 E2E）：已绑定的测试调用真实入口，并按测试用例断言，即便这会让当前实现失败。找不到唯一匹配的用例不生成测试，而是写入 `docs/khufu/api/oracle-mismatch.md` 或 `docs/khufu/e2e/oracle-mismatch.md`
 - **多 IDE 支持**：可安装到 Claude Code、Cursor、OpenCode、Codex、Qoder 与 Trae——每个工具都按自身的技能/命令目录约定放置技能
 
 ## 快速开始
@@ -29,7 +31,7 @@ Khufu 提供七项技能——`/khufu-ut`、`/khufu-it`、`/khufu-api`、`/khufu
 # 全局安装
 npm install -g khufu-kit
 
-# 在项目中初始化
+# 在项目中初始化。工具列表没有任何预选项。
 cd your-project
 khufu init
 
@@ -62,10 +64,14 @@ Khufu 按各工具自己的技能/命令目录约定安装技能，因此同一�
 `khufu init` 会请你选择要安装的工具，没有任何预选项。`--yes` 和非交互运行不会代选工具，需要自己传入 `--ide`：
 
 ```bash
-khufu init --ide claude,qoder,trae
+khufu init --ide claude,qoder,trae          # 带 --yes，或没有终端时必须传入
+khufu init --ide claude --scope global      # 等同于 --global；默认范围是项目内
+khufu init --ide claude --yes --force       # 跳过其余提问，并覆盖 .khufu/khufu.yaml
 ```
 
-每个被选中的工具都会在自己的目录中收到全部七项技能（`khufu-ut`、`khufu-it`、`khufu-api`、`khufu-e2e`、`khufu-harness`、`khufu-to-prd`、`khufu-to-test-cases`）。
+`--yes` 会直接采用检测到的语言，不再询问；检测不到语言时回退到 Java。它不会代选工具。
+
+每个被选中的工具都会在自己的目录中收到全部七项技能（`khufu-ut`、`khufu-it`、`khufu-api`、`khufu-e2e`、`khufu-harness`、`khufu-to-prd`、`khufu-to-test-cases`）。技能附带的文件会一起安装，其中包括 `khufu-to-test-cases/scripts/resolve_prd_args.py`。
 
 ## 更新
 
@@ -79,7 +85,7 @@ khufu update       # 交互模式——升级前询问
 khufu update -y    # 直接升级，不再询问
 ```
 
-## 支持的语言（v0.2）
+## 支持的语言
 
 | 语言 | UT 框架 | IT 框架 | API 框架 | E2E 框架 |
 |------|---------|---------|----------|----------|
@@ -88,6 +94,9 @@ khufu update -y    # 直接升级，不再询问
 | TypeScript/JS | Jest, Vitest, Mocha | Jest + Supertest | Supertest | Playwright, Cypress |
 | Go | testing + testify | testing + dockertest | testing + httptest | Playwright |
 | C# | xUnit, NUnit, MSTest | xUnit + Testcontainers | RestSharp | Playwright |
+| C++ | Google Test, Catch2, doctest | Google Test | pytest + httpx | Playwright, Qt Test |
+
+初始化会从项目文件识别 Java、Python、TypeScript、JavaScript、Go、C#、C++、Rust、Ruby 和 Elixir。上表中的语言会写入框架、目录和覆盖率默认值。Rust、Ruby 和 Elixir 能被识别，交互式语言列表里也有 Rust 和 Ruby，但这三者没有框架默认值。C++ 由 `CMakeLists.txt` 或 `xmake.lua` 识别，不在手动语言列表里。
 
 ## 测试金字塔策略
 
@@ -152,10 +161,13 @@ specs/
 
 ## 配置
 
-执行 `khufu init` 后，项目根目录会生成 `khufu.yaml`：
+执行 `khufu init` 后，配置写在 `.khufu/khufu.yaml`。`.khufu/installed-skills.json` 记录已安装的技能。TypeScript 项目的内容如下：
 
 ```yaml
-ide: [claude, qoder, trae]
+ide:
+  - claude
+  - qoder
+  - trae
 language: typescript
 frameworks:
   ut: jest
@@ -170,69 +182,57 @@ directories:
 coverage:
   ut:
     tool: jest
-    thresholds: { line: 80, branch: 70, function: 80 }
+    thresholds:
+      line: 80
+      branch: 70
+      function: 80
     formats: [lcov, html, text]
     excludes: ['**/*.d.ts', '**/index.ts', '**/*.config.*']
   it:
     tool: jest
-    thresholds: { line: 60, branch: 50 }
+    thresholds:
+      line: 60
+      branch: 50
     formats: [lcov, html]
-
-# 脆弱测试管理（v0.2）
-categories:
-  fragile:
-    excludeFromCI: true
-    runOnSchedule: weekly
-
-# 规约体系（v0.2）
-spec:
-  enabled: true
-  directory: specs/
-  format: markdown
-  versioning: file-based
-  autoGenerateFromTests: true
-
-# 评估驱动开发（v0.2）
-evaluation:
-  enabled: true
-  failOnUnmetCriteria: warning
-  dimensions: [correctness, coverage, performance, maintainability]
-  thresholds:
-    ut: { lineCoverage: 80, branchCoverage: 70, maxTestMs: 100, maxFragileRatio: 20 }
-    it: { lineCoverage: 60, branchCoverage: 50, maxTestMsH2: 2000, maxTestMsPostgres: 10000 }
-
-# 共享测试数据（v0.2）
-dataFactories:
-  directory: tests/factories/
-  reuseAcrossLayers: true
-
+    excludes: ['**/*.config.*']
 scope: project
 ```
+
+Java、Python、Go、C# 和 C++ 会写入各自的框架、目录和覆盖率默认值。初始化不会写入 `spec`、`evaluation`、`categories` 或 `dataFactories`。这些规则仍由 `skills/_shared/` 里的技能约定执行。之后可以自行补上可选的 `spec` 块；测试层技能在它存在时读取 `spec.directory`（默认 `specs/`）和 `spec.docsDirectory`（默认 `docs/khufu/`）。`--force` 会替换已有的 `.khufu/khufu.yaml`。
 
 ## 架构
 
 ```
 skills/
-├── _shared/                       # 共享模块（v0.2）
-│   ├── mode-selection.md          # 基于规约 vs 基于代码
-│   ├── language-detection.md      # 语言与框架检测
-│   ├── framework-selector.md      # 按语言 × 层级选择框架
-│   ├── directory-resolver.md      # 测试目录解析
-│   ├── coverage-config.md         # 覆盖率工具配置
-│   ├── report-template.md         # 统一报告生成
-│   ├── test-data-factories.md     # 共享数据工厂模式
-│   ├── test-pyramid-strategy.md   # 分层去重规则
-│   └── evaluation-framework.md    # EDD 方法
-├── khufu-ut/SKILL.md              # 单元测试生成器
-├── khufu-it/SKILL.md              # 集成测试生成器
-├── khufu-api/SKILL.md             # API 测试生成器
-├── khufu-e2e/SKILL.md             # 端到端测试生成器
-├── khufu-harness/SKILL.md         # 约束资产生成器
-├── khufu-to-prd/SKILL.md          # 按 Cockburn 用例编写的 MVP PRD
-└── khufu-to-test-cases/SKILL.md   # 由 PRD 生成 docs/test-cases
+├── _shared/
+│   ├── mode-selection.md              # 基于规约 vs 基于代码
+│   ├── language-detection.md          # 语言与 khufu.yaml
+│   ├── framework-selector.md          # 按语言 × 层级选择框架
+│   ├── directory-resolver.md          # 测试目录解析
+│   ├── coverage-config.md             # 覆盖率工具配置
+│   ├── compilation-verification.md    # 编译生成的测试
+│   ├── test-execution-verification.md # 运行生成的测试
+│   ├── evaluation-framework.md        # EDD 方法
+│   ├── test-pyramid-strategy.md       # 分层去重规则
+│   ├── spec-sync.md                   # 跳过已经生成过的场景
+│   ├── spec-doc-scanner.md            # 读取 docs/khufu 执行记录
+│   ├── spec-doc-generator.md          # 写入 docs/khufu 执行记录
+│   ├── test-data-factories.md         # 共享数据工厂模式
+│   ├── report-template.md             # 统一报告生成
+│   ├── parallel-execution.md          # 把生成工作分给子代理
+│   └── oracle-binding.md              # 代码绑定调用，测试用例锁定断言
+├── khufu-ut/SKILL.md                  # 单元测试生成器
+├── khufu-it/SKILL.md                  # 集成测试生成器
+├── khufu-api/SKILL.md                 # API 测试生成器
+├── khufu-e2e/SKILL.md                 # 端到端测试生成器
+├── khufu-harness/SKILL.md             # 约束资产生成器
+├── khufu-to-prd/SKILL.md              # 按 Cockburn 用例编写的 MVP PRD
+└── khufu-to-test-cases/
+    ├── SKILL.md                       # 由 PRD 生成 docs/test-cases
+    └── scripts/resolve_prd_args.py    # 判断本次调用是否给出了 PRD 路径
 ```
 
-技能通过 Read 工具委托引用 `_shared/` 模块——共享逻辑只定义一次，由四个技能共同使用。
+`khufu-ut`、`khufu-it`、`khufu-api` 和 `khufu-e2e` 通过 Read 工具读取 `_shared/`。共享逻辑只定义一次。`khufu-harness`、`khufu-to-prd` 和 `khufu-to-test-cases` 走各自的流程。
 
 ## 开发
 
@@ -274,7 +274,7 @@ npm link                    # 全局注册 khufu 命令
 
 # 第 2 步：安装到你的项目
 cd /path/to/your-project
-khufu init                  # 创建 khufu.yaml，并把技能安装到所选 IDE 的技能/命令目录
+khufu init                  # 写入 .khufu/khufu.yaml，并把技能安装到所选 IDE 的技能/命令目录
 ```
 
 修改 khufu-kit 源码后，这样获取更新：
